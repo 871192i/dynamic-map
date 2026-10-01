@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dynamic Map App</title>
+  <title>ปักแจ้ง (PukJaeng) - ศูนย์แจ้งเหตุ & เตือนภัยชุมชนเรียลไทม์</title>
   
   <!-- Leaflet CSS & JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -20,27 +20,41 @@
 <body class="bg-gray-100 flex flex-col md:flex-row h-screen overflow-hidden">
 
   <!-- Sidebar ด้านซ้าย -->
-  <div class="sidebar w-full md:w-80 bg-white p-4 shadow-lg flex flex-col gap-4 overflow-y-auto h-auto md:h-full">
-    <h1 class="text-xl font-bold text-gray-800">🗺️ แอปแผนที่ปักหมุด</h1>
-    <p class="text-xs text-gray-500">คลิกที่จุดใดก็ได้บนแผนที่เพื่อเพิ่มหมุดใหม่</p>
+  <div class="sidebar w-full md:w-96 bg-white p-4 shadow-xl flex flex-col gap-4 overflow-y-auto h-auto md:h-full border-r">
+    <div>
+      <div class="flex items-center gap-2">
+        <span class="text-3xl">🚨</span>
+        <div>
+          <h1 class="text-xl font-extrabold text-gray-800">ปักแจ้ง (PukJaeng)</h1>
+          <p class="text-xs text-blue-600 font-semibold">ศูนย์แจ้งเหตุ & เตือนภัยชุมชนเรียลไทม์</p>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 mt-2 bg-blue-50 p-2 rounded-lg border border-blue-100">
+        💡 คลิกจุดบนแผนที่เพื่อแจ้งเหตุ | หมุดจะหมดอายุและหายไปเองภายใน 24 ชม. หากไม่มีการอัปเดต
+      </p>
+    </div>
 
     <!-- ตัวกรองหมวดหมู่ -->
     <div>
-      <label class="text-sm font-semibold text-gray-700">เลือกหมวดหมู่:</label>
-      <select id="categoryFilter" class="w-full mt-1 p-2 border rounded-lg text-sm bg-gray-50" onchange="filterMarkers()">
-        <option value="all">ทั้งหมด</option>
-        <option value="cafe">☕ ร้านกาแฟ</option>
-        <option value="ev">⚡ สถานี EV</option>
-        <option value="travel">🏔️ สถานที่ท่องเที่ยว</option>
+      <label class="text-xs font-bold text-gray-600 uppercase tracking-wider">กรองประเภทเหตุการณ์:</label>
+      <select id="categoryFilter" class="w-full mt-1 p-2.5 border rounded-xl text-sm bg-gray-50 font-medium focus:ring-2 focus:ring-blue-500 outline-none" onchange="filterMarkers()">
+        <option value="all">🚨 เหตุการณ์ทั้งหมด</option>
+        <option value="flood">🌊 น้ำท่วม / น้ำขังขอบทาง</option>
+        <option value="accident">⚠️ อุบัติเหตุ / ถนนชำรุด</option>
+        <option value="utility">🔌 ไฟฟ้า / ประปาขัดข้อง</option>
+        <option value="help">🆘 จุดช่วยเหลือ / แจ้งเตือนด่วน</option>
       </select>
     </div>
 
-    <hr>
+    <hr class="border-gray-200">
 
-    <!-- รายการหมุดทั้งหมด -->
-    <div>
-      <h2 class="text-sm font-semibold text-gray-700 mb-2">หมุดทั้งหมด (<span id="locationCount">0</span>)</h2>
-      <div id="locationList" class="space-y-2 max-h-60 md:max-h-96 overflow-y-auto"></div>
+    <!-- รายการแจ้งเหตุเรียลไทม์ -->
+    <div class="flex-1">
+      <div class="flex justify-between items-center mb-2">
+        <h2 class="text-sm font-bold text-gray-700">รายการแจ้งเหตุสด (<span id="locationCount">0</span>)</h2>
+        <span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-semibold">Live 24h</span>
+      </div>
+      <div id="locationList" class="space-y-3 max-h-80 md:max-h-[calc(100vh-280px)] overflow-y-auto pr-1"></div>
     </div>
   </div>
 
@@ -50,21 +64,61 @@
   </div>
 
   <script>
-    // เริ่มต้นระบบแผนที่
-    const map = L.map('map').setView([13.7563, 100.5018], 13);
+    // เริ่มต้นระบบแผนที่ (ตั้งศูนย์กลางที่ประเทศไทย)
+    const map = L.map('map').setView([13.7563, 100.5018], 12);
 
-    // ภาพแผนที่ฟรีจาก OpenStreetMap มาตรฐาน
+    // ภาพแผนที่มาตรฐานจาก OpenStreetMap
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
 
-    let markersData = [
-      { id: 1, name: "ร้านกาแฟสุขใจ", category: "cafe", lat: 13.7563, lng: 100.5018, desc: "กาแฟดี บรรยากาศเงียบสงบ" },
-      { id: 2, name: "จุดชาร์จ EV พญาไท", category: "ev", lat: 13.7590, lng: 100.5350, desc: "ชาร์จไว 120kW มี 4 ช่อง" }
+    const CATEGORY_MAP = {
+      flood: { name: "🌊 น้ำท่วม/น้ำขัง", color: "bg-blue-100 text-blue-700 border-blue-300" },
+      accident: { name: "⚠️ อุบัติเหตุ/ถนนชำรุด", color: "bg-orange-100 text-orange-700 border-orange-300" },
+      utility: { name: "🔌 ไฟฟ้า/ประปาขัดข้อง", color: "bg-yellow-100 text-yellow-700 border-yellow-300" },
+      help: { name: "🆘 จุดช่วยเหลือ/ด่วน", color: "bg-red-100 text-red-700 border-red-300" }
+    };
+
+    // ข้อมูลจำลองการแจ้งเหตุ (ตั้งเวลาสร้างปัจจุบัน และกำหนดวันหมดอายุใน 24 ชั่วโมง)
+    const NOW = Date.now();
+    const HOUR_IN_MS = 3600 * 1000;
+
+    let reportsData = [
+      {
+        id: 1,
+        title: "น้ำท่วมขังรอการระบาย สูงระดับฟุตบาท",
+        category: "flood",
+        lat: 13.7563,
+        lng: 100.5018,
+        desc: "รถเล็กโปรดหลีกเลี่ยง มีน้ำท่วมขังความยาวประมาณ 200 เมตร",
+        imgUrl: "https://images.unsplash.com/photo-1547683905-f686c993aae5?w=400&q=80",
+        createdAt: NOW - (2 * HOUR_IN_MS), // แจ้งเมื่อ 2 ชม. ที่แล้ว
+        expiresAt: NOW + (22 * HOUR_IN_MS)
+      },
+      {
+        id: 2,
+        title: "กิ่งไม้ใหญ่หักขวางช่องทางจราจร",
+        category: "accident",
+        lat: 13.7700,
+        lng: 100.5350,
+        desc: "ขวางเลนซ้าย เจ้าหน้าที่กำลังเข้าดำเนินการ",
+        imgUrl: "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?w=400&q=80",
+        createdAt: NOW - (5 * HOUR_IN_MS), // แจ้งเมื่อ 5 ชม. ที่แล้ว
+        expiresAt: NOW + (19 * HOUR_IN_MS)
+      }
     ];
 
     let currentMarkersOnMap = [];
+
+    // คำนวณเวลาที่เหลืออยู่ก่อนหมดอายุ 24 ชม.
+    function getTimeLeftRemaining(expiresAt) {
+      const diffMs = expiresAt - Date.now();
+      if (diffMs <= 0) return "หมดอายุแล้ว";
+      const hours = Math.floor(diffMs / (1000 * 60 * 60));
+      const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      return `เหลือเวลาอีก ${hours} ชม. ${mins} นาที`;
+    }
 
     function renderMarkers(data) {
       currentMarkersOnMap.forEach(m => map.removeLayer(m));
@@ -72,64 +126,116 @@
 
       const listContainer = document.getElementById('locationList');
       listContainer.innerHTML = '';
-      document.getElementById('locationCount').innerText = data.length;
 
-      data.forEach(item => {
+      // คัดกรองเอาเฉพาะหมุดที่ยังไม่หมดอายุ 24 ชั่วโมง
+      const activeData = data.filter(item => item.expiresAt > Date.now());
+      document.getElementById('locationCount').innerText = activeData.length;
+
+      activeData.forEach(item => {
+        const catConfig = CATEGORY_MAP[item.category] || { name: item.category, color: "bg-gray-100 text-gray-700" };
+        const timeLeft = getTimeLeftRemaining(item.expiresAt);
+
+        // สร้าง Marker
         const marker = L.marker([item.lat, item.lng]).addTo(map);
-        marker.bindPopup(`
-          <div class="p-1">
-            <h3 class="font-bold text-base text-blue-600">${item.name}</h3>
+        
+        const popupContent = `
+          <div class="w-64 p-1 font-sans">
+            ${item.imgUrl ? `<img src="${item.imgUrl}" class="w-full h-32 object-cover rounded-lg mb-2 shadow-sm" alt="Thumbnail">` : ''}
+            <span class="inline-block text-[11px] font-bold px-2 py-0.5 rounded border ${catConfig.color} mb-1">
+              ${catConfig.name}
+            </span>
+            <h3 class="font-bold text-sm text-gray-900 leading-snug">${item.title}</h3>
             <p class="text-xs text-gray-600 mt-1">${item.desc}</p>
-            <span class="inline-block mt-2 px-2 py-0.5 text-xs bg-gray-100 rounded border">หมวดหมู่: ${item.category}</span>
+            <div class="mt-2 pt-2 border-t text-[10px] text-gray-400 flex justify-between items-center">
+              <span>⏳ ${timeLeft}</span>
+              <button onclick="updateReportTime(${item.id})" class="text-blue-600 font-bold hover:underline">🔄 กดเพื่อยืนยันเหตุ (+24 ชม.)</button>
+            </div>
           </div>
-        `);
+        `;
+
+        marker.bindPopup(popupContent);
         currentMarkersOnMap.push(marker);
 
+        // สร้างการ์ดแสดงผลใน Sidebar
         const card = document.createElement('div');
-        card.className = "p-3 border rounded-lg bg-gray-50 hover:bg-blue-50 cursor-pointer transition";
+        card.className = "p-3 border rounded-xl bg-white hover:border-blue-400 shadow-sm transition flex gap-3 cursor-pointer";
         card.innerHTML = `
-          <h4 class="font-bold text-sm text-gray-800">${item.name}</h4>
-          <p class="text-xs text-gray-500">${item.desc}</p>
+          ${item.imgUrl ? `<img src="${item.imgUrl}" class="w-16 h-16 rounded-lg object-cover flex-shrink-0">` : '<div class="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center text-xl flex-shrink-0">📍</div>'}
+          <div class="flex-1 min-w-0">
+            <span class="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded border ${catConfig.color} mb-1">
+              ${catConfig.name}
+            </span>
+            <h4 class="font-bold text-xs text-gray-800 truncate">${item.title}</h4>
+            <p class="text-[11px] text-gray-500 truncate">${item.desc}</p>
+            <p class="text-[10px] text-blue-500 font-medium mt-1">⏳ ${timeLeft}</p>
+          </div>
         `;
+
         card.onclick = () => {
-          map.flyTo([item.lat, item.lng], 16);
+          map.flyTo([item.lat, item.lng], 15);
           marker.openPopup();
         };
+
         listContainer.appendChild(card);
       });
     }
 
+    // ฟังก์ชันเพิ่มระยะเวลาเมื่อมีคนมาอัปเดตยืนยันเหตุการณ์
+    window.updateReportTime = function(id) {
+      const item = reportsData.find(r => r.id === id);
+      if (item) {
+        item.expiresAt = Date.now() + (24 * HOUR_IN_MS);
+        alert("ขอบคุณสำหรับการอัปเดต! เพิ่มระยะเวลาการแสดงผลหมุดนี้อีก 24 ชั่วโมงเรียบร้อยแล้ว");
+        renderMarkers(reportsData);
+      }
+    };
+
+    // คลิกเพื่อปักหมุดแจ้งเหตุใหม่
     map.on('click', function(e) {
       const lat = e.latlng.lat.toFixed(4);
       const lng = e.latlng.lng.toFixed(4);
 
-      const name = prompt(`เพิ่มสถานที่ใหม่ตรงพิกัด (${lat}, ${lng}):\nกรุณาพิมพ์ชื่อสถานที่`);
-      if (!name) return;
+      const title = prompt(`🚨 เพิ่มการแจ้งเหตุใหม่ที่พิกัด (${lat}, ${lng}):\nระบุหัวข้อเหตุการณ์ (เช่น น้ำท่วมขังถนนพหลโยธิน):`);
+      if (!title) return;
 
-      const desc = prompt("พิมพ์รายละเอียดสั้นๆ:") || "ไม่มีรายละเอียด";
-      const category = prompt("ใส่หมวดหมู่ (cafe / ev / travel):", "cafe") || "cafe";
+      const category = prompt("เลือกประเภทเหตุการณ์:\n- flood (น้ำท่วม)\n- accident (อุบัติเหตุ/ถนนชำรุด)\n- utility (ไฟดับ/น้ำไม่ไหล)\n- help (ขอความช่วยเหลือ)", "flood") || "flood";
+      const desc = prompt("รายละเอียดเพิ่มเติม (เช่น ระดับน้ำสูงเท่าไร / รถเล็กผ่านได้ไหม):") || "ไม่มีรายละเอียดเพิ่มเติม";
+      const imgUrl = prompt("ใส่ลิงก์รูปภาพ (URL) สำหรับแสดงภาพตัวอย่าง (ถ้าไม่มีให้เว้นว่างไว้):") || "";
 
-      markersData.push({
+      const newReport = {
         id: Date.now(),
-        name: name,
+        title: title,
         category: category,
         lat: parseFloat(lat),
         lng: parseFloat(lng),
-        desc: desc
-      });
-      renderMarkers(markersData);
+        desc: desc,
+        imgUrl: imgUrl,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + (24 * HOUR_IN_MS) // สลายตัวใน 24 ชม.
+      };
+
+      reportsData.unshift(newReport);
+      renderMarkers(reportsData);
+      alert("บันทึกการแจ้งเหตุเรียบร้อยแล้ว! หมุดนี้จะแสดงผลเป็นเวลา 24 ชั่วโมง");
     });
 
+    // ตัวกรอง
     window.filterMarkers = function() {
       const cat = document.getElementById('categoryFilter').value;
       if (cat === 'all') {
-        renderMarkers(markersData);
+        renderMarkers(reportsData);
       } else {
-        renderMarkers(markersData.filter(i => i.category === cat));
+        renderMarkers(reportsData.filter(i => i.category === cat));
       }
     };
 
-    renderMarkers(markersData);
+    // เริ่มต้นแสดงผล
+    renderMarkers(reportsData);
+
+    // ตรวจสอบและลบหมุดที่หมดอายุอัตโนมัติทุกๆ 1 นาที
+    setInterval(() => {
+      renderMarkers(reportsData);
+    }, 60000);
   </script>
 </body>
 </html>
