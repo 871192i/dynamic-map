@@ -2,8 +2,8 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ปักแจ้ง (PukJaeng) - ศูนย์แจ้งเหตุ & เตือนภัยชุมชนเรียลไทม์</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ปักแจ้ง (PukJaeng) - ชุมชนแจ้งเหตุสตรีทเรียลไทม์</title>
   
   <!-- Leaflet CSS & JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -15,34 +15,44 @@
   <style>
     #map { height: 100vh; width: 100%; z-index: 1; }
     .sidebar { z-index: 1000; }
+    .modal-overlay { z-index: 2000; }
   </style>
 </head>
-<body class="bg-gray-100 flex flex-col md:flex-row h-screen overflow-hidden">
+<body class="bg-gray-100 flex flex-col md:flex-row h-screen overflow-hidden select-none">
 
-  <!-- Sidebar ด้านซ้าย -->
-  <div class="sidebar w-full md:w-96 bg-white p-4 shadow-xl flex flex-col gap-4 overflow-y-auto h-auto md:h-full border-r">
-    <div>
+  <!-- Sidebar ด้านซ้าย / แถบเครื่องมือบนมือถือ -->
+  <div class="sidebar w-full md:w-96 bg-white p-4 shadow-xl flex flex-col gap-3 overflow-y-auto h-auto max-h-[45vh] md:max-h-full border-r">
+    <div class="flex justify-between items-center">
       <div class="flex items-center gap-2">
         <span class="text-3xl">🚨</span>
         <div>
-          <h1 class="text-xl font-extrabold text-gray-800">ปักแจ้ง (PukJaeng)</h1>
-          <p class="text-xs text-blue-600 font-semibold">ศูนย์แจ้งเหตุ & เตือนภัยชุมชนเรียลไทม์</p>
+          <h1 class="text-lg font-extrabold text-gray-800">ปักแจ้ง (PukJaeng)</h1>
+          <p class="text-[10px] text-blue-600 font-semibold">แจ้งเหตุเตือนภัย & สภาพน้ำท่วมเรียลไทม์</p>
         </div>
       </div>
-      <p class="text-xs text-gray-500 mt-2 bg-blue-50 p-2 rounded-lg border border-blue-100">
-        💡 คลิกจุดบนแผนที่เพื่อแจ้งเหตุ | หมุดจะหมดอายุและหายไปเองภายใน 24 ชม. หากไม่มีการอัปเดต
-      </p>
+      <!-- ปุ่ม Admin Mode -->
+      <button onclick="toggleAdminLogin()" id="adminBtn" class="text-xs bg-gray-100 hover:bg-gray-200 px-2.5 py-1.5 rounded-lg border font-medium text-gray-700 flex items-center gap-1">
+        🔒 แอดมิน
+      </button>
     </div>
+
+    <!-- ปุ่มปักแจ้งเหตุใหญ่สำหรับมือถือ -->
+    <button onclick="enablePinMode()" id="pinModeBtn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl shadow-md flex items-center justify-center gap-2 transition active:scale-95">
+      <span class="text-xl">📍</span> แตะบนแผนที่เพื่อปักแจ้งเหตุ
+    </button>
 
     <!-- ตัวกรองหมวดหมู่ -->
     <div>
-      <label class="text-xs font-bold text-gray-600 uppercase tracking-wider">กรองประเภทเหตุการณ์:</label>
-      <select id="categoryFilter" class="w-full mt-1 p-2.5 border rounded-xl text-sm bg-gray-50 font-medium focus:ring-2 focus:ring-blue-500 outline-none" onchange="filterMarkers()">
+      <div class="flex justify-between items-center mb-1">
+        <label class="text-[11px] font-bold text-gray-500 uppercase tracking-wider">กรองประเภทเหตุการณ์:</label>
+        <button onclick="addCustomCategory()" id="addCatBtn" class="hidden text-[10px] text-blue-600 font-bold hover:underline">+ เพิ่มหมวดหมู่ (Admin)</button>
+      </div>
+      <select id="categoryFilter" class="w-full p-2 border rounded-xl text-xs bg-gray-50 font-medium outline-none" onchange="filterMarkers()">
         <option value="all">🚨 เหตุการณ์ทั้งหมด</option>
-        <option value="flood">🌊 น้ำท่วม / น้ำขังขอบทาง</option>
-        <option value="accident">⚠️ อุบัติเหตุ / ถนนชำรุด</option>
+        <option value="flood">🌊 น้ำท่วม / รอการระบาย</option>
+        <option value="accident">⚠️ อุบัติเหตุ / กิ่งไม้ขวางทาง</option>
         <option value="utility">🔌 ไฟฟ้า / ประปาขัดข้อง</option>
-        <option value="help">🆘 จุดช่วยเหลือ / แจ้งเตือนด่วน</option>
+        <option value="help">🆘 ขอความช่วยเหลือด่วน</option>
       </select>
     </div>
 
@@ -51,10 +61,10 @@
     <!-- รายการแจ้งเหตุเรียลไทม์ -->
     <div class="flex-1">
       <div class="flex justify-between items-center mb-2">
-        <h2 class="text-sm font-bold text-gray-700">รายการแจ้งเหตุสด (<span id="locationCount">0</span>)</h2>
-        <span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-semibold">Live 24h</span>
+        <h2 class="text-xs font-bold text-gray-700">รายการแจ้งเหตุสด (<span id="locationCount">0</span>)</h2>
+        <span class="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-semibold">หายเองใน 24h</span>
       </div>
-      <div id="locationList" class="space-y-3 max-h-80 md:max-h-[calc(100vh-280px)] overflow-y-auto pr-1"></div>
+      <div id="locationList" class="space-y-2 max-h-48 md:max-h-[calc(100vh-280px)] overflow-y-auto pr-1"></div>
     </div>
   </div>
 
@@ -63,63 +73,219 @@
     <div id="map"></div>
   </div>
 
+  <!-- Modal ป๊อปอัปฟอร์มแจ้งเหตุบนมือถือ (เน้นกด Choice / ไม่ต้องพิมพ์เยอะ) -->
+  <div id="reportModal" class="modal-overlay fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl overflow-y-auto max-h-[90vh]">
+      <div class="flex justify-between items-center border-b pb-3 mb-3">
+        <h3 class="font-bold text-base text-gray-800 flex items-center gap-2">📍 รายละเอียดการแจ้งเหตุ</h3>
+        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+      </div>
+
+      <form id="reportForm" onsubmit="saveReport(event)" class="space-y-4">
+        <!-- ประเภทเหตุการณ์ -->
+        <div>
+          <label class="block text-xs font-bold text-gray-700 mb-1">1. ประเภทเหตุการณ์</label>
+          <select id="formCategory" class="w-full p-2.5 border rounded-xl text-sm bg-gray-50 font-medium" onchange="toggleFloodOptions()">
+            <option value="flood">🌊 น้ำท่วม / รอการระบาย</option>
+            <option value="accident">⚠️ อุบัติเหตุ / กิ่งไม้ขวางทาง</option>
+            <option value="utility">🔌 ไฟฟ้า / ประปาขัดข้อง</option>
+            <option value="help">🆘 ขอความช่วยเหลือด่วน</option>
+          </select>
+        </div>
+
+        <!-- แถบเลื่อนระดับน้ำ (แสดงเฉพาะเมื่อเลือกน้ำท่วม) -->
+        <div id="floodSliderGroup" class="bg-blue-50 p-3 rounded-xl border border-blue-100">
+          <div class="flex justify-between text-xs font-bold text-blue-900 mb-1">
+            <span>🌊 ระดับน้ำขัง:</span>
+            <span id="waterLevelLabel" class="text-blue-600 font-extrabold">20 ซม. (ระดับข้อเท้า)</span>
+          </div>
+          <input type="range" id="waterLevel" min="0" max="100" value="20" step="5" class="w-full accent-blue-600 cursor-pointer" oninput="updateWaterLabel(this.value)">
+        </div>
+
+        <!-- ปุ่ม Choice สภาพการจราจร (ไม่ต้องพิมพ์) -->
+        <div>
+          <label class="block text-xs font-bold text-gray-700 mb-1.5">2. การสัญจรของรถยนต์</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button type="button" onclick="selectPassable('รถเล็กผ่านได้')" id="passBtn1" class="pass-btn p-2 text-xs border rounded-xl font-medium text-center bg-green-50 border-green-300 text-green-700">🚗 รถเล็กผ่านได้</button>
+            <button type="button" onclick="selectPassable('เฉพาะรถใหญ่/ยกสูง')" id="passBtn2" class="pass-btn p-2 text-xs border rounded-xl font-medium text-center bg-yellow-50 border-yellow-300 text-yellow-700">🚚 เฉพาะรถใหญ่</button>
+            <button type="button" onclick="selectPassable('สัญจรไม่ได้')" id="passBtn3" class="pass-btn p-2 text-xs border rounded-xl font-medium text-center bg-red-50 border-red-300 text-red-700">⛔ ผ่านไม่ได้</button>
+          </div>
+          <input type="hidden" id="passableValue" value="รถเล็กผ่านได้">
+        </div>
+
+        <!-- อัปโหลดรูปถ่าย / ถ่ายรูปจากมือถือ -->
+        <div>
+          <label class="block text-xs font-bold text-gray-700 mb-1">3. ถ่ายภาพ / แนบรูปเหตุการณ์</label>
+          <input type="file" id="imageInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageUpload(event)">
+          <button type="button" onclick="document.getElementById('imageInput').click()" class="w-full border-2 border-dashed border-gray-300 p-3 rounded-xl text-xs text-gray-600 flex items-center justify-center gap-2 hover:bg-gray-50 transition">
+            <span class="text-lg">📷</span> <span id="uploadBtnText">กดเพื่อถ่ายรูป หรือเลือกภาพจากแกลเลอรี</span>
+          </button>
+          <div id="imagePreviewContainer" class="hidden mt-2 relative">
+            <img id="imagePreview" class="w-full h-32 object-cover rounded-xl border">
+            <button type="button" onclick="removeImage()" class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 text-xs font-bold">&times;</button>
+          </div>
+        </div>
+
+        <!-- รายละเอียดเพิ่มเติม (Optional) -->
+        <div>
+          <label class="block text-xs font-bold text-gray-700 mb-1">4. รายละเอียดเพิ่มเติม (ถ้ามี)</label>
+          <input type="text" id="formDesc" placeholder="เช่น บริเวณหน้าปากซอย 5" class="w-full p-2.5 border rounded-xl text-xs bg-gray-50">
+        </div>
+
+        <p class="text-[10px] text-gray-400">💡 คำเตือน: คุณสามารถกดลากหมุดบนแผนที่เพื่อปรับพิกัดให้แม่นยำได้ก่อนกดบันทึก</p>
+
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeModal()" class="w-1/3 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold py-3 rounded-xl">ยกเลิก</button>
+          <button type="submit" class="w-2/3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-3 rounded-xl shadow-md">บันทึกการแจ้งเหตุ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
-    // เริ่มต้นระบบแผนที่ (ตั้งศูนย์กลางที่ประเทศไทย)
+    // ตั้งค่าเริ่มต้นระบบแผนที่
     const map = L.map('map').setView([13.7563, 100.5018], 12);
 
-    // ภาพแผนที่มาตรฐานจาก OpenStreetMap
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      attribution: '&copy; OpenStreetMap'
     }).addTo(map);
 
-    const CATEGORY_MAP = {
-      flood: { name: "🌊 น้ำท่วม/น้ำขัง", color: "bg-blue-100 text-blue-700 border-blue-300" },
-      accident: { name: "⚠️ อุบัติเหตุ/ถนนชำรุด", color: "bg-orange-100 text-orange-700 border-orange-300" },
-      utility: { name: "🔌 ไฟฟ้า/ประปาขัดข้อง", color: "bg-yellow-100 text-yellow-700 border-yellow-300" },
-      help: { name: "🆘 จุดช่วยเหลือ/ด่วน", color: "bg-red-100 text-red-700 border-red-300" }
-    };
+    let isAdmin = false;
+    let tempMarker = null;
+    let uploadedImageData = "";
+    let tempCoords = null;
 
-    // ข้อมูลจำลองการแจ้งเหตุ (ตั้งเวลาสร้างปัจจุบัน และกำหนดวันหมดอายุใน 24 ชั่วโมง)
     const NOW = Date.now();
-    const HOUR_IN_MS = 3600 * 1000;
+    const HOUR_MS = 3600 * 1000;
 
     let reportsData = [
       {
         id: 1,
-        title: "น้ำท่วมขังรอการระบาย สูงระดับฟุตบาท",
         category: "flood",
+        waterLevel: 30,
+        passable: "เฉพาะรถใหญ่/ยกสูง",
+        desc: "ขังรอการระบาย หน้าตลาด",
+        imgUrl: "https://images.unsplash.com/photo-1547683905-f686c993aae5?w=400&q=80",
         lat: 13.7563,
         lng: 100.5018,
-        desc: "รถเล็กโปรดหลีกเลี่ยง มีน้ำท่วมขังความยาวประมาณ 200 เมตร",
-        imgUrl: "https://images.unsplash.com/photo-1547683905-f686c993aae5?w=400&q=80",
-        createdAt: NOW - (2 * HOUR_IN_MS), // แจ้งเมื่อ 2 ชม. ที่แล้ว
-        expiresAt: NOW + (22 * HOUR_IN_MS)
-      },
-      {
-        id: 2,
-        title: "กิ่งไม้ใหญ่หักขวางช่องทางจราจร",
-        category: "accident",
-        lat: 13.7700,
-        lng: 100.5350,
-        desc: "ขวางเลนซ้าย เจ้าหน้าที่กำลังเข้าดำเนินการ",
-        imgUrl: "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?w=400&q=80",
-        createdAt: NOW - (5 * HOUR_IN_MS), // แจ้งเมื่อ 5 ชม. ที่แล้ว
-        expiresAt: NOW + (19 * HOUR_IN_MS)
+        createdAt: NOW,
+        expiresAt: NOW + (24 * HOUR_MS)
       }
     ];
 
     let currentMarkersOnMap = [];
 
-    // คำนวณเวลาที่เหลืออยู่ก่อนหมดอายุ 24 ชม.
-    function getTimeLeftRemaining(expiresAt) {
-      const diffMs = expiresAt - Date.now();
-      if (diffMs <= 0) return "หมดอายุแล้ว";
-      const hours = Math.floor(diffMs / (1000 * 60 * 60));
-      const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-      return `เหลือเวลาอีก ${hours} ชม. ${mins} นาที`;
-    }
+    // ฟังก์ชันเลื่อนเปิด Admin
+    window.toggleAdminLogin = function() {
+      if (isAdmin) {
+        isAdmin = false;
+        alert("ออกจากโหมด Admin เรียบร้อยแล้ว");
+        document.getElementById('adminBtn').innerText = "🔒 แอดมิน";
+        document.getElementById('addCatBtn').classList.add('hidden');
+      } else {
+        const password = prompt("กรุณากรอกรหัสผ่าน Admin:");
+        if (password === "1234") { // ตั้งรหัสผ่าน Admin ตรงนี้
+          isAdmin = true;
+          alert("เข้าสู่โหมด Admin สำเร็จ! คุณสามารถกดลบหมุดของคนไม่หวังดีได้แล้ว");
+          document.getElementById('adminBtn').innerText = "🔓 โหมดแอดมิน (ใช้งานอยู่)";
+          document.getElementById('addCatBtn').classList.remove('hidden');
+        } else if (password !== null) {
+          alert("รหัสผ่านไม่ถูกต้อง");
+        }
+      }
+      renderMarkers(reportsData);
+    };
 
+    // ปรับแต่ง Label ระดับน้ำ
+    window.updateWaterLabel = function(val) {
+      let desc = "ระดับข้อเท้า";
+      if (val > 25 && val <= 50) desc = "ระดับครึ่งแข้ง / ท่อไอเสีย";
+      else if (val > 50 && val <= 75) desc = "ระดับหัวเข่า / ท่วมครึ่งล้อ";
+      else if (val > 75) desc = "ระดับเอว / สูงอันตราย";
+      document.getElementById('waterLevelLabel').innerText = `${val} ซม. (${desc})`;
+    };
+
+    // ปุ่ม Choice การสัญจร
+    window.selectPassable = function(val) {
+      document.getElementById('passableValue').value = val;
+      document.querySelectorAll('.pass-btn').forEach(b => b.classList.remove('ring-2', 'ring-blue-500', 'font-bold'));
+      event.target.classList.add('ring-2', 'ring-blue-500', 'font-bold');
+    };
+
+    // อัปโหลด/ถ่ายรูปจากมือถือ
+    window.handleImageUpload = function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          uploadedImageData = event.target.result;
+          document.getElementById('imagePreview').src = uploadedImageData;
+          document.getElementById('imagePreviewContainer').classList.remove('hidden');
+          document.getElementById('uploadBtnText').innerText = "เปลี่ยนรูปถ่าย";
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
+    window.removeImage = function() {
+      uploadedImageData = "";
+      document.getElementById('imageInput').value = "";
+      document.getElementById('imagePreviewContainer').classList.add('hidden');
+      document.getElementById('uploadBtnText').innerText = "กดเพื่อถ่ายรูป หรือเลือกภาพจากแกลเลอรี";
+    };
+
+    // เปิด Modal ปักหมุดแบบลากย้ายได้
+    map.on('click', function(e) {
+      tempCoords = e.latlng;
+      
+      if (tempMarker) map.removeLayer(tempMarker);
+      
+      // หมุดสีแดงลากได้ (Draggable Marker)
+      tempMarker = L.marker(tempCoords, { draggable: true }).addTo(map);
+      tempMarker.bindPopup("📍 **ลากหมุดนี้เพื่อปรับตำแหน่งให้เป๊ะได้ครับ**").openPopup();
+
+      tempMarker.on('dragend', function(event) {
+        tempCoords = event.target.getLatLng();
+      });
+
+      document.getElementById('reportModal').classList.remove('hidden');
+    });
+
+    window.closeModal = function() {
+      document.getElementById('reportModal').classList.add('hidden');
+      if (tempMarker) map.removeLayer(tempMarker);
+    };
+
+    // บันทึกข้อมูล
+    window.saveReport = function(e) {
+      e.preventDefault();
+      const category = document.getElementById('formCategory').value;
+      const waterLevel = document.getElementById('waterLevel').value;
+      const passable = document.getElementById('passableValue').value;
+      const desc = document.getElementById('formDesc').value || "ไม่มีรายละเอียดเพิ่ม";
+
+      const newReport = {
+        id: Date.now(),
+        category: category,
+        waterLevel: category === 'flood' ? waterLevel : null,
+        passable: passable,
+        desc: desc,
+        imgUrl: uploadedImageData,
+        lat: tempCoords.lat,
+        lng: tempCoords.lng,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + (24 * HOUR_MS)
+      };
+
+      reportsData.unshift(newReport);
+      closeModal();
+      removeImage();
+      renderMarkers(reportsData);
+      alert("ปักแจ้งเหตุเรียบร้อยแล้ว! ขอบคุณที่ร่วมช่วยแจ้งเตือนชุมชนครับ");
+    };
+
+    // วาดหมุดลงบนแผนที่
     function renderMarkers(data) {
       currentMarkersOnMap.forEach(m => map.removeLayer(m));
       currentMarkersOnMap = [];
@@ -127,47 +293,36 @@
       const listContainer = document.getElementById('locationList');
       listContainer.innerHTML = '';
 
-      // คัดกรองเอาเฉพาะหมุดที่ยังไม่หมดอายุ 24 ชั่วโมง
       const activeData = data.filter(item => item.expiresAt > Date.now());
       document.getElementById('locationCount').innerText = activeData.length;
 
       activeData.forEach(item => {
-        const catConfig = CATEGORY_MAP[item.category] || { name: item.category, color: "bg-gray-100 text-gray-700" };
-        const timeLeft = getTimeLeftRemaining(item.expiresAt);
-
-        // สร้าง Marker
         const marker = L.marker([item.lat, item.lng]).addTo(map);
-        
-        const popupContent = `
-          <div class="w-64 p-1 font-sans">
-            ${item.imgUrl ? `<img src="${item.imgUrl}" class="w-full h-32 object-cover rounded-lg mb-2 shadow-sm" alt="Thumbnail">` : ''}
-            <span class="inline-block text-[11px] font-bold px-2 py-0.5 rounded border ${catConfig.color} mb-1">
-              ${catConfig.name}
-            </span>
-            <h3 class="font-bold text-sm text-gray-900 leading-snug">${item.title}</h3>
-            <p class="text-xs text-gray-600 mt-1">${item.desc}</p>
-            <div class="mt-2 pt-2 border-t text-[10px] text-gray-400 flex justify-between items-center">
-              <span>⏳ ${timeLeft}</span>
-              <button onclick="updateReportTime(${item.id})" class="text-blue-600 font-bold hover:underline">🔄 กดเพื่อยืนยันเหตุ (+24 ชม.)</button>
-            </div>
+
+        let deleteBtnHTML = isAdmin ? `<button onclick="deleteReport(${item.id})" class="mt-2 w-full bg-red-100 text-red-600 font-bold py-1 rounded text-xs">🗑️ ลบหมุดนี้ (Admin)</button>` : '';
+
+        const popupHTML = `
+          <div class="w-56 p-1">
+            ${item.imgUrl ? `<img src="${item.imgUrl}" class="w-full h-28 object-cover rounded-lg mb-2">` : ''}
+            <h4 class="font-bold text-xs text-blue-700">${item.category === 'flood' ? `🌊 น้ำท่วมขัง ${item.waterLevel} ซม.` : '🚨 แจ้งเตือนเหตุ'}</h4>
+            <p class="text-[11px] font-semibold text-gray-800 mt-0.5">🚦 ${item.passable}</p>
+            <p class="text-[10px] text-gray-500 mt-1">${item.desc}</p>
+            ${deleteBtnHTML}
           </div>
         `;
 
-        marker.bindPopup(popupContent);
+        marker.bindPopup(popupHTML);
         currentMarkersOnMap.push(marker);
 
-        // สร้างการ์ดแสดงผลใน Sidebar
+        // Sidebar List
         const card = document.createElement('div');
-        card.className = "p-3 border rounded-xl bg-white hover:border-blue-400 shadow-sm transition flex gap-3 cursor-pointer";
+        card.className = "p-2.5 border rounded-xl bg-white shadow-sm flex gap-2 cursor-pointer hover:border-blue-300";
         card.innerHTML = `
-          ${item.imgUrl ? `<img src="${item.imgUrl}" class="w-16 h-16 rounded-lg object-cover flex-shrink-0">` : '<div class="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center text-xl flex-shrink-0">📍</div>'}
+          ${item.imgUrl ? `<img src="${item.imgUrl}" class="w-12 h-12 rounded-lg object-cover flex-shrink-0">` : '<div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-lg flex-shrink-0">📍</div>'}
           <div class="flex-1 min-w-0">
-            <span class="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded border ${catConfig.color} mb-1">
-              ${catConfig.name}
-            </span>
-            <h4 class="font-bold text-xs text-gray-800 truncate">${item.title}</h4>
-            <p class="text-[11px] text-gray-500 truncate">${item.desc}</p>
-            <p class="text-[10px] text-blue-500 font-medium mt-1">⏳ ${timeLeft}</p>
+            <h5 class="font-bold text-xs text-gray-800 truncate">${item.category === 'flood' ? `น้ำท่วม ${item.waterLevel} ซม.` : 'แจ้งเหตุ'}</h5>
+            <p class="text-[10px] text-blue-600 font-medium truncate">${item.passable}</p>
+            <p class="text-[10px] text-gray-400 truncate">${item.desc}</p>
           </div>
         `;
 
@@ -180,62 +335,28 @@
       });
     }
 
-    // ฟังก์ชันเพิ่มระยะเวลาเมื่อมีคนมาอัปเดตยืนยันเหตุการณ์
-    window.updateReportTime = function(id) {
-      const item = reportsData.find(r => r.id === id);
-      if (item) {
-        item.expiresAt = Date.now() + (24 * HOUR_IN_MS);
-        alert("ขอบคุณสำหรับการอัปเดต! เพิ่มระยะเวลาการแสดงผลหมุดนี้อีก 24 ชั่วโมงเรียบร้อยแล้ว");
+    // แอดมินลบหมุดไม่พึงประสงค์
+    window.deleteReport = function(id) {
+      if (confirm("คุณแน่ใจหรือไม่ว่าต้องการลบหมุดแจ้งเหตุนี้?")) {
+        reportsData = reportsData.filter(r => r.id !== id);
         renderMarkers(reportsData);
+        alert("ลบหมุดเรียบร้อยแล้ว");
       }
     };
 
-    // คลิกเพื่อปักหมุดแจ้งเหตุใหม่
-    map.on('click', function(e) {
-      const lat = e.latlng.lat.toFixed(4);
-      const lng = e.latlng.lng.toFixed(4);
-
-      const title = prompt(`🚨 เพิ่มการแจ้งเหตุใหม่ที่พิกัด (${lat}, ${lng}):\nระบุหัวข้อเหตุการณ์ (เช่น น้ำท่วมขังถนนพหลโยธิน):`);
-      if (!title) return;
-
-      const category = prompt("เลือกประเภทเหตุการณ์:\n- flood (น้ำท่วม)\n- accident (อุบัติเหตุ/ถนนชำรุด)\n- utility (ไฟดับ/น้ำไม่ไหล)\n- help (ขอความช่วยเหลือ)", "flood") || "flood";
-      const desc = prompt("รายละเอียดเพิ่มเติม (เช่น ระดับน้ำสูงเท่าไร / รถเล็กผ่านได้ไหม):") || "ไม่มีรายละเอียดเพิ่มเติม";
-      const imgUrl = prompt("ใส่ลิงก์รูปภาพ (URL) สำหรับแสดงภาพตัวอย่าง (ถ้าไม่มีให้เว้นว่างไว้):") || "";
-
-      const newReport = {
-        id: Date.now(),
-        title: title,
-        category: category,
-        lat: parseFloat(lat),
-        lng: parseFloat(lng),
-        desc: desc,
-        imgUrl: imgUrl,
-        createdAt: Date.now(),
-        expiresAt: Date.now() + (24 * HOUR_IN_MS) // สลายตัวใน 24 ชม.
-      };
-
-      reportsData.unshift(newReport);
-      renderMarkers(reportsData);
-      alert("บันทึกการแจ้งเหตุเรียบร้อยแล้ว! หมุดนี้จะแสดงผลเป็นเวลา 24 ชั่วโมง");
-    });
-
-    // ตัวกรอง
-    window.filterMarkers = function() {
-      const cat = document.getElementById('categoryFilter').value;
-      if (cat === 'all') {
-        renderMarkers(reportsData);
-      } else {
-        renderMarkers(reportsData.filter(i => i.category === cat));
+    window.addCustomCategory = function() {
+      const newCat = prompt("กรอกชื่อหมวดหมู่ใหม่ที่ต้องการเพิ่มในระบบ:");
+      if (newCat) {
+        const select = document.getElementById('categoryFilter');
+        const opt = document.createElement('option');
+        opt.value = newCat;
+        opt.innerText = "📌 " + newCat;
+        select.appendChild(opt);
+        alert(`เพิ่มหมวดหมู่ "${newCat}" เรียบร้อยแล้ว`);
       }
     };
 
-    // เริ่มต้นแสดงผล
     renderMarkers(reportsData);
-
-    // ตรวจสอบและลบหมุดที่หมดอายุอัตโนมัติทุกๆ 1 นาที
-    setInterval(() => {
-      renderMarkers(reportsData);
-    }, 60000);
   </script>
 </body>
 </html>
