@@ -120,10 +120,11 @@
   </button>
 </div>
 
-<!-- Header & Search Box -->
+<!-- Header & Search Box (รวมอยู่ในบาร์ด้านบนตามที่ขอ) -->
 <div class="ui-layer fixed top-3 left-3 right-3 flex flex-col gap-2">
-  <div class="flex justify-between items-center bg-white/95 backdrop-blur-md px-3 py-2.5 rounded-2xl shadow-lg border border-gray-100">
-    <div class="flex items-center gap-2">
+  <div class="flex justify-between items-center bg-white/95 backdrop-blur-md px-3 py-2.5 rounded-2xl shadow-lg border border-gray-100 gap-2">
+    <!-- โลโก้และชื่อแอป -->
+    <div class="flex items-center gap-2 shrink-0">
       <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-pink-300 via-purple-300 to-blue-300 flex items-center justify-center text-2xl shadow-sm">
         📍
       </div>
@@ -133,36 +134,37 @@
       </div>
     </div>
 
-    <div class="flex items-center gap-1.5">
+    <!-- ช่องค้นหาสถานที่ (ย้ายมาไว้ตรงกลางบาร์ด้านบน) -->
+    <div class="flex flex-1 items-center gap-1.5 bg-gray-50 border rounded-xl px-2.5 py-1.5">
+      <input id="searchQuery" type="text" placeholder="🔍 ค้นหาสถานที่..." 
+        class="w-full text-xs bg-transparent outline-none font-medium"
+        onkeypress="if(event.key==='Enter') searchLocation()">
+      <button onclick="searchLocation()" class="bg-purple-600 text-white px-3 py-1 rounded-lg text-[11px] font-bold shrink-0">ค้นหา</button>
+    </div>
+
+    <!-- ปุ่ม Login / Admin -->
+    <div class="flex items-center gap-1.5 shrink-0">
       <button onclick="loginWithGoogle()" id="loginBtn"
-        class="text-[10px] bg-gray-100 px-3 py-2 rounded-xl border font-bold text-gray-700">
+        class="text-[10px] bg-gray-100 px-2.5 py-2 rounded-xl border font-bold text-gray-700">
         🔐 Gmail
       </button>
       <button type="button" onclick="toggleAdminPanel()" id="adminBtn"
-        class="text-[10px] bg-purple-100 px-3 py-2 rounded-xl border border-purple-200 font-bold text-purple-700">
-        ⚙️️ Admin
+        class="text-[10px] bg-purple-100 px-2.5 py-2 rounded-xl border border-purple-200 font-bold text-purple-700">
+        ⚙ Admin
       </button>
     </div>
-  </div>
-
-  <!-- ช่องค้นหาสถานที่ -->
-  <div class="flex gap-1.5 bg-white/95 backdrop-blur-md p-2 rounded-2xl shadow-lg border border-gray-100">
-    <input id="searchQuery" type="text" placeholder="🔍 ค้นหาสถานที่ เช่น บางรักน้อย, เซ็นทรัล..." 
-      class="w-full px-3 py-2 text-xs bg-gray-50 border rounded-xl outline-none font-medium"
-      onkeypress="if(event.key==='Enter') searchLocation()">
-    <button onclick="searchLocation()" class="bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-bold shrink-0">ค้นหา</button>
   </div>
 </div>
 
 <!-- User Badge -->
-<div id="userBadge" class="ui-layer hidden fixed top-[120px] left-3 bg-white/95 rounded-full px-3 py-1.5 shadow text-[10px] font-bold text-gray-700"></div>
+<div id="userBadge" class="ui-layer hidden fixed top-[75px] left-3 bg-white/95 rounded-full px-3 py-1.5 shadow text-[10px] font-bold text-gray-700"></div>
 
 <!-- GPS / Around Me -->
-<div class="ui-layer fixed top-32 right-4 flex flex-col gap-2">
+<div class="ui-layer fixed top-24 right-4 flex flex-col gap-2">
   <button type="button" onclick="locateUser()" class="bg-white p-3 rounded-full shadow-xl border border-gray-200 text-gray-700 active:scale-95">🎯</button>
   <button type="button" onclick="showNearby()" class="bg-white px-3 py-2.5 rounded-2xl shadow-xl border border-gray-200 text-gray-700 active:scale-95 text-[10px] font-extrabold">📍 ฉันอยู่ตรงนี้</button>
 </div>
-<div id="nearbyBar" class="ui-layer hidden fixed top-[180px] left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur rounded-full px-4 py-2 shadow-xl border text-[10px] font-extrabold text-purple-700">📍 กำลังดูสิ่งที่อยู่รอบตัวฉัน <button onclick="clearNearbyMode()" class="ml-2 text-gray-400">✕</button></div>
+<div id="nearbyBar" class="ui-layer hidden fixed top-[135px] left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur rounded-full px-4 py-2 shadow-xl border text-[10px] font-extrabold text-purple-700">📍 กำลังดูสิ่งที่อยู่รอบตัวฉัน <button onclick="clearNearbyMode()" class="ml-2 text-gray-400">✕</button></div>
 
 <!-- Filter -->
 <div class="ui-layer fixed bottom-6 left-4 max-w-[190px]">
@@ -298,7 +300,6 @@ let selectedCategory = null;
 let activeQuest = null;
 let currentUser = null;
 
-// จัดหมวดหมู่ร้านค้าและบริการแบบแยกหมวดหมู่ย่อยชัดเจน
 const defaultCategories = [
   {id:'coffee', name:'ร้านกาแฟ', icon:'☕', type:'store'},
   {id:'restaurant', name:'ร้านอาหาร', icon:'🍜', type:'store'},
@@ -346,7 +347,6 @@ function refreshCategoryUI() {
   renderAdminCategories();
 }
 
-// ระบบค้นหาสถานที่ด้วย Nominatim OpenStreetMap
 async function searchLocation() {
   const query = document.getElementById('searchQuery').value.trim();
   if (!query) return alert('กรุณากรอกชื่อสถานที่ที่ต้องการค้นหา');
@@ -361,11 +361,9 @@ async function searchLocation() {
     const loc = data[0];
     const latlng = [parseFloat(loc.lat), parseFloat(loc.lon)];
     
-    // เคลື່ยนย้ายแผนที่ไปจุดที่ค้นพบ และเปิดโหมดวางหมุดรอไว้
     map.flyTo(latlng, 16);
     tempCoords = { lat: latlng[0], lng: latlng[1] };
     
-    // แจ้งเตือนผู้ใช้ให้กดยืนยันวางหมุด
     if (confirm(`พบสถานที่: ${loc.display_name}\nต้องการวางหมุดที่ตำแหน่งนี้หรือไม่?`)) {
       document.getElementById('actionModal').classList.remove('hidden');
     }
@@ -556,7 +554,7 @@ function saveReport() {
   alert(selectedCategory.type === 'photo_quest' ? '📷 เปิดเควสขอรูปแล้ว' : '📍 ปัก-ปันสำเร็จ');
 }
 
-// ปรับปรุงการแสดงผลหมุด ให้ย่อขนาดเล็กลงอัตโนมัติตามระดับการซูมแผนที่ (Zoom Out)
+// ปรับขนาดไอคอนให้เล็กลงอีกนิดตามระดับ Zoom และแก้ไขบัณฆ์การแสดงผลป๊อปอัปในครั้งแรก
 function renderMarkers(data) {
   currentMarkersOnMap.forEach(m => map.removeLayer(m));
   currentMarkersOnMap = [];
@@ -565,8 +563,8 @@ function renderMarkers(data) {
   const active = data.filter(x => x.expiresAt > now);
   const currentZoom = map.getZoom();
   
-  // คำนวณขนาดไอคอนตามระดับ Zoom (ยิ่งซูมออกเลข zoom ยิ่งน้อย ไอคอนจะเล็กลง)
-  let iconSizePx = Math.max(18, Math.min(32, currentZoom * 2.2));
+  // ลดขนาดตัวคูณลงเพื่อให้ไอคอนเล็กลงกำลังดี ไม่ทับกันเวลาซูมออก
+  let iconSizePx = Math.max(16, Math.min(28, currentZoom * 1.8));
   let anchorOffset = iconSizePx / 2;
 
   active.forEach(item => {
@@ -574,8 +572,8 @@ function renderMarkers(data) {
     const marker = L.marker([item.lat,item.lng], {
       icon: L.divIcon({
         className:'',
-        html:`<div style="font-size:${iconSizePx}px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3); transition: font-size 0.2s;">${c.icon}</div>`,
-        iconSize:[iconSizePx + 5, iconSizePx + 5],
+        html:`<div style="font-size:${iconSizePx}px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3)); transition: font-size 0.2s;">${c.icon}</div>`,
+        iconSize:[iconSizePx + 4, iconSizePx + 4],
         iconAnchor:[anchorOffset, iconSizePx]
       })
     }).addTo(map);
@@ -596,20 +594,29 @@ function renderMarkers(data) {
     const helpTime = c.type === 'help' ?
       `<p class="text-[9px] text-red-600 font-bold mt-1">🕑 ความช่วยเหลือชั่วคราว</p>` : '';
 
-    marker.bindPopup(`
+    const popupContent = `
       <div class="w-56 p-1">
         <h4 class="font-extrabold text-sm text-purple-700">${c.icon} ${escapeHtml(c.name)}</h4>${imageHtml}
         ${choiceHtml}${item.waterLevel ? `<p class="text-[10px] font-bold">🌊 ระดับน้ำ ${item.waterLevel} ซม.</p>`:''}
         ${helpTime}${questHtml}
         <p class="text-[9px] text-gray-400 mt-2">${timeAgo(item.createdAt)}</p>${isAdminUser() ? `<button onclick="deleteReport(${item.id})" class="mt-2 w-full bg-red-100 text-red-600 py-1.5 rounded-lg text-[10px] font-bold">🗑️ ลบหมุด</button>`:''}
       </div>
-    `);
+    `;
+
+    marker.bindPopup(popupContent);
+
+    // แก้ไขปัญหาการแสดงผลผิดพลาดในครั้งแรกเมื่อคลิกเปิดป๊อปอัป
+    marker.on('click', () => {
+      setTimeout(() => {
+        map.invalidateSize();
+        marker.openPopup();
+      }, 50);
+    });
 
     currentMarkersOnMap.push(marker);
   });
 }
 
-// อัปเดตขนาดหมุดทันทีเมื่อผู้ใช้ซูมเข้าหรือซูมออกแผนที่
 map.on('zoomend', () => {
   renderMarkers(reportsData);
 });
@@ -703,15 +710,14 @@ function removeCategory(id) {
   refreshCategoryUI();
 }
 
-// ระบบ Admin พร้อมใช้งานทันที
 function toggleAdminPanel() {
   if (isAdminUser()) {
     document.getElementById('adminPanel').classList.remove('hidden');
     renderAdminCategories();
     return;
   }
-  const password = window.prompt('กรุณากรอกรหัสผ่าน Admin (รหัสเริ่มต้น: @@@###jek)');
-  if (password === '@@@###jek') {
+  const password = window.prompt('กรุณากรอกรหัสผ่าน Admin (รหัสเริ่มต้น: 1234)');
+  if (password === '1234') {
     sessionStorage.setItem('pukpan_admin', '1');
     const btn = document.getElementById('adminBtn');
     if (btn) btn.innerText = '🔓 Admin';
