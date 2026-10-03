@@ -1,955 +1,107 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>ปัก-ปัน</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ปัก-ปัน (Puk-Pan) - แผนที่ชุมชน</title>
+    <!-- Tailwind CSS สำหรับตกแต่งหน้าเว็บ -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet CSS สำหรับแสดงแผนที่ -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body class="bg-gray-50 flex flex-col h-screen">
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Navbar ส่วนหัว -->
+    <header class="bg-emerald-600 text-white shadow-md p-4 flex justify-between items-center">
+        <h1 class="text-xl font-bold">📍 ปัก-ปัน (Puk-Pan)</h1>
+        <div id="auth-section" class="flex items-center space-x-3">
+            <span id="user-name" class="text-sm hidden"></span>
+            <button id="login-btn" onclick="loginWithGoogle()" class="bg-white text-emerald-700 px-4 py-2 rounded-lg font-medium shadow hover:bg-emerald-50 transition">
+                เข้าสู่ระบบด้วย Google
+            </button>
+            <button id="logout-btn" onclick="logout()" class="bg-red-500 text-white px-3 py-1.5 rounded-lg text-sm hidden hover:bg-red-600 transition">
+                ออกจากระบบ
+            </button>
+        </div>
+    </header>
 
-  <!-- Firebase SDK Setup -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-    import {
-      getAuth, GoogleAuthProvider, signInWithPopup, signOut,
-      onAuthStateChanged
-    } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+    <!-- พื้นที่แสดงแผนที่ -->
+    <main class="flex-1 relative">
+        <div id="map" class="w-full h-full z-0"></div>
+    </main>
 
-    window.FIREBASE_CONFIG = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT.appspot.com",
-      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-      appId: "YOUR_APP_ID"
-    };
+    <!-- Firebase App (Modular SDK CDN) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-    window.firebaseReady = false;
+        // ค่า Config จากที่คุณให้มา
+        const firebaseConfig = {
+          apiKey: "AIzaSyBup4KDjEO51H5prLfYSWu9DuaMXCMPbp4",
+          authDomain: "pukpan-app-9d3ab.firebaseapp.com",
+          projectId: "pukpan-app-9d3ab",
+          storageBucket: "pukpan-app-9d3ab.firebasestorage.app",
+          messagingSenderId: "257779785523",
+          appId: "1:257779785523:web:1b6fbe19fdadabf520a846",
+          measurementId: "G-0DDTH6M8KD"
+        };
 
-    if (!window.FIREBASE_CONFIG.apiKey.startsWith("YOUR_")) {
-      try {
-        const app = initializeApp(window.FIREBASE_CONFIG);
+        // เริ่มต้นใช้งาน Firebase
+        const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
 
-        window.googleLogin = async function () {
-          const result = await signInWithPopup(auth, provider);
-          return result.user;
+        // ฟังก์ชันเข้าสู่ระบบด้วย Google
+        window.loginWithGoogle = function() {
+            signInWithPopup(auth, provider)
+                .then((result) => {
+                    console.log("Login สำเร็จ:", result.user.displayName);
+                })
+                .catch((error) => {
+                    console.error("Login Error:", error.message);
+                    alert("เกิดข้อผิดพลาดในการเข้าสู่ระบบ: " + error.message);
+                });
         };
 
-        window.googleLogout = async function () {
-          await signOut(auth);
+        // ฟังก์ชันออกจากระบบ
+        window.logout = function() {
+            signOut(auth).then(() => {
+                console.log("ออกจากระบบแล้ว");
+            }).catch((error) => {
+                console.error("Logout Error:", error);
+            });
         };
 
-        onAuthStateChanged(auth, user => {
-          window.currentUser = user || null;
-          window.dispatchEvent(new CustomEvent("auth-changed", { detail: user || null }));
+        // ตรวจสอบสถานะการล็อกอินของผู้ใช้แบบ Real-time
+        onAuthStateChanged(auth, (user) => {
+            const loginBtn = document.getElementById('login-btn');
+            const logoutBtn = document.getElementById('logout-btn');
+            const userName = document.getElementById('user-name');
+
+            if (user) {
+                // กรณีล็อกอินแล้ว
+                loginBtn.classList.add('hidden');
+                userName.textContent = `สวัสดี, ${user.displayName}`;
+                userName.classList.remove('hidden');
+                logoutBtn.classList.remove('hidden');
+            } else {
+                // กรณียังไม่ล็อกอิน
+                loginBtn.classList.remove('hidden');
+                userName.classList.add('hidden');
+                logoutBtn.classList.add('hidden');
+            }
         });
-
-        window.firebaseReady = true;
-      } catch (err) {
-        console.error("Firebase init error:", err);
-      }
-    }
-  </script>
-
-  <style>
-    html, body { height:100%; width:100%; margin:0; padding:0; overflow:hidden; }
-    #map { position:absolute; inset:0; z-index:1; }
-    .ui-layer { z-index:1000; }
-    .modal-overlay { z-index:3000; }
-    .pin-mode { cursor: crosshair; }
-    .bottom-sheet { max-height:88vh; }
-    .thumb-img { cursor:zoom-in; }
-    .pin-fixed {
-      position:absolute;
-      left:50%;
-      top:50%;
-      transform:translate(-50%,-100%);
-      z-index:1500;
-      pointer-events:none;
-      font-size:42px;
-      filter:drop-shadow(0 4px 5px rgba(0,0,0,.28));
-    }
-    .pin-shadow {
-      position:absolute;
-      left:50%;
-      top:50%;
-      transform:translate(-50%,0);
-      z-index:1499;
-      width:20px;
-      height:7px;
-      border-radius:50%;
-      background:rgba(0,0,0,.22);
-      filter:blur(2px);
-      pointer-events:none;
-    }
-    .quest-progress {
-      height:8px;
-      border-radius:99px;
-      background:#e5e7eb;
-      overflow:hidden;
-    }
-    .quest-progress > div {
-      height:100%;
-      transition:width .25s ease;
-    }
-  </style>
-</head>
-
-<body class="bg-gray-100 font-sans select-none">
-
-<div id="map"></div>
-
-<!-- หมุดคงที่กลางจอระหว่างเลือกตำแหน่ง -->
-<div id="pinGuide" class="hidden">
-  <div class="pin-fixed">📍</div>
-  <div class="pin-shadow"></div>
-  <div class="fixed left-1/2 -translate-x-1/2 top-[55%] z-[1500] bg-white/95 backdrop-blur px-4 py-2 rounded-full shadow-lg text-xs font-bold text-gray-700">
-    เลื่อนแผนที่หรือหมุนเมาส์ซูมเพื่อหาจุดที่ต้องการ
-  </div>
-  <button onclick="confirmPinLocation()"
-    class="fixed bottom-7 left-1/2 -translate-x-1/2 z-[1600] bg-blue-600 text-white px-7 py-3.5 rounded-full shadow-2xl font-extrabold text-sm active:scale-95">
-    📍 วางหมุดตรงนี้
-  </button>
-  <button onclick="cancelPinLocation()"
-    class="fixed top-28 left-1/2 -translate-x-1/2 z-[1600] bg-white text-gray-700 px-4 py-2 rounded-full shadow-lg text-xs font-bold">
-    ยกเลิก
-  </button>
-</div>
-
-<!-- Header & Search Box (แถบบนสุด) -->
-<div class="ui-layer fixed top-3 left-3 right-3 flex flex-col gap-2">
-  <div class="flex justify-between items-center bg-white/95 backdrop-blur-md px-3 py-2.5 rounded-2xl shadow-lg border border-gray-100 gap-2">
-    <!-- โลโก้และชื่อแอป -->
-    <div class="flex items-center gap-2 shrink-0">
-      <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-pink-300 via-purple-300 to-blue-300 flex items-center justify-center text-2xl shadow-sm">
-        📍
-      </div>
-      <div>
-        <h1 class="text-sm font-extrabold text-gray-800 leading-tight">ปัก-ปัน</h1>
-        <p class="text-[9px] text-purple-600 font-semibold">ปักสิ่งที่รู้ • ปันสิ่งที่เห็น</p>
-      </div>
-    </div>
-
-    <!-- ช่องค้นหาสถานที่ (ย้ายมาไว้ตรงกลางบาร์ด้านบน) -->
-    <div class="flex flex-1 items-center gap-1.5 bg-gray-50 border rounded-xl px-2.5 py-1.5">
-      <input id="searchQuery" type="text" placeholder="🔍 ค้นหาสถานที่..." 
-        class="w-full text-xs bg-transparent outline-none font-medium"
-        onkeypress="if(event.key==='Enter') searchLocation()">
-      <button onclick="searchLocation()" class="bg-purple-600 text-white px-3 py-1 rounded-lg text-[11px] font-bold shrink-0">ค้นหา</button>
-    </div>
-
-    <!-- ปุ่ม Login / Admin -->
-    <div class="flex items-center gap-1.5 shrink-0">
-      <button onclick="loginWithGoogle()" id="loginBtn"
-        class="text-[10px] bg-gray-100 px-2.5 py-2 rounded-xl border font-bold text-gray-700">
-        🔐 Gmail
-      </button>
-      <button type="button" onclick="toggleAdminPanel()" id="adminBtn"
-        class="text-[10px] bg-purple-100 px-2.5 py-2 rounded-xl border border-purple-200 font-bold text-purple-700">
-        ⚙ Admin
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- User Badge -->
-<div id="userBadge" class="ui-layer hidden fixed top-[75px] left-3 bg-white/95 rounded-full px-3 py-1.5 shadow text-[10px] font-bold text-gray-700"></div>
-
-<!-- GPS / Around Me -->
-<div class="ui-layer fixed top-24 right-4 flex flex-col gap-2">
-  <button type="button" onclick="locateUser()" class="bg-white p-3 rounded-full shadow-xl border border-gray-200 text-gray-700 active:scale-95" title="ตำแหน่งของฉัน">🎯</button>
-  <button type="button" onclick="showNearby()" class="bg-white px-3 py-2.5 rounded-2xl shadow-xl border border-gray-200 text-gray-700 active:scale-95 text-[10px] font-extrabold">📍 ฉันอยู่ตรงนี้ (2 กม.)</button>
-</div>
-<div id="nearbyBar" class="ui-layer hidden fixed top-[135px] left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur rounded-full px-4 py-2 shadow-xl border text-[10px] font-extrabold text-purple-700">📍 กำลังแสดงหมุดรัศมี 2 กม. รอบตัวฉัน <button onclick="clearNearbyMode()" class="ml-2 text-gray-400">✕</button></div>
-
-<!-- Filter -->
-<div class="ui-layer fixed bottom-6 left-4 max-w-[190px]">
-  <select id="categoryFilter" class="w-full p-2.5 border-2 border-purple-400 rounded-2xl text-xs bg-white/95 font-bold shadow-xl outline-none text-gray-800" onchange="filterMarkers()">
-  </select>
-</div>
-
-<!-- Main pin button -->
-<button onclick="startPinning()" class="ui-layer fixed bottom-6 right-4 bg-purple-600 active:bg-purple-700 text-white font-extrabold py-3.5 px-5 rounded-full shadow-2xl flex items-center gap-2 border-2 border-white active:scale-95">
-  <span class="text-xl">📍</span>
-  <span class="text-sm">ปัก-ปัน</span>
-</button>
-
-<!-- Category / action modal -->
-<div id="actionModal" class="modal-overlay fixed inset-0 bg-black/55 backdrop-blur-sm hidden flex items-end sm:items-center justify-center">
-  <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md p-5 bottom-sheet overflow-y-auto">
-    <div class="flex justify-between items-center mb-3">
-      <div>
-        <h3 class="font-extrabold text-lg">ปักเรื่องอะไรดี?</h3>
-        <p class="text-[10px] text-gray-500">เลือกหมวดหมู่ที่ต้องการปักหมุด</p>
-      </div>
-      <button onclick="closeActionModal()" class="text-2xl text-gray-400">&times;</button>
-    </div>
-    <div id="categoryChoices" class="grid grid-cols-2 gap-2"></div>
-  </div>
-</div>
-
-<!-- Dynamic report modal -->
-<div id="reportModal" class="modal-overlay fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-end sm:items-center justify-center">
-  <div class="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 bottom-sheet overflow-y-auto">
-    <div class="flex justify-between items-center border-b pb-3 mb-3">
-      <div>
-        <h3 id="reportTitle" class="font-bold text-base">รายละเอียด</h3>
-        <p id="reportSubtitle" class="text-[10px] text-gray-500"></p>
-      </div>
-      <button onclick="closeReportModal()" class="text-2xl text-gray-400">&times;</button>
-    </div>
-
-    <div id="reportFields" class="space-y-3"></div>
-
-    <div class="flex gap-2 pt-3">
-      <button onclick="closeReportModal()" class="w-1/3 bg-gray-100 text-gray-700 text-xs font-bold py-3 rounded-xl">ยกเลิก</button>
-      <button onclick="saveReport()" class="w-2/3 bg-purple-600 text-white text-xs font-bold py-3 rounded-xl shadow-lg">ปัก-ปันเลย</button>
-    </div>
-  </div>
-</div>
-
-<!-- Quest modal -->
-<div id="questModal" class="modal-overlay fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-end sm:items-center justify-center">
-  <div class="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 bottom-sheet overflow-y-auto">
-    <div class="flex justify-between">
-      <div>
-        <h3 id="questTitle" class="font-extrabold text-lg">🆘 เควสช่วยเหลือ</h3>
-        <p id="questSub" class="text-[10px] text-gray-500">ช่วยกันเก็บข้อมูลให้ครบ 5 คน</p>
-      </div>
-      <button onclick="closeQuestModal()" class="text-2xl text-gray-400">&times;</button>
-    </div>
-
-    <div class="mt-4">
-      <div class="flex justify-between text-xs font-bold mb-1">
-        <span>ความคืบหน้า</span>
-        <span id="questCount">0/5 รูป</span>
-      </div>
-      <div class="quest-progress"><div id="questProgressBar" class="bg-purple-500" style="width:0%"></div></div>
-    </div>
-
-    <div id="questImages" class="grid grid-cols-2 gap-2 mt-4"></div>
-
-    <button onclick="answerQuestWithPhoto()" id="questPhotoBtn"
-      class="w-full mt-4 bg-blue-600 text-white py-3 rounded-xl font-extrabold text-sm">
-      📷 ฉันไปดูให้
-    </button>
-  </div>
-</div>
-
-<!-- Admin Panel -->
-<div id="adminPanel" class="modal-overlay fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-end sm:items-center justify-center">
-  <div class="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 bottom-sheet overflow-y-auto">
-    <div class="flex justify-between">
-      <div>
-        <h3 class="font-extrabold text-lg">⚙️ จัดการปัก-ปัน (Admin)</h3>
-        <p class="text-[10px] text-gray-500">เพิ่มหมวดหมู่และเลือกไอคอนหลากหลาย</p>
-      </div>
-      <button onclick="closeAdminPanel()" class="text-2xl text-gray-400">&times;</button>
-    </div>
-
-    <div class="mt-4 space-y-3">
-      <input id="adminCatName" class="w-full p-3 border rounded-xl text-sm" placeholder="ชื่อหมวด เช่น ร้านยา, จุดชมวิว">
-      
-      <div>
-        <label class="text-xs font-bold text-gray-600 mb-1 block">เลือกไอคอนด่วน หรือพิมพ์ใส่เอง</label>
-        <div class="grid grid-cols-8 gap-1 mb-2 bg-gray-50 p-2 rounded-xl border text-center">
-          <button type="button" onclick="document.getElementById('adminCatIcon').value='☕'" class="p-1 hover:bg-purple-100 rounded">☕</button>
-          <button type="button" onclick="document.getElementById('adminCatIcon').value='🍜'" class="p-1 hover:bg-purple-100 rounded">🍜</button>
-          <button type="button" onclick="document.getElementById('adminCatIcon').value='🛒'" class="p-1 hover:bg-purple-100 rounded">🛒</button>
-          <button type="button" onclick="document.getElementById('adminCatIcon').value='💊'" class="p-1 hover:bg-purple-100 rounded">💊</button>
-          <button type="button" onclick="document.getElementById('adminCatIcon').value='⚡'" class="p-1 hover:bg-purple-100 rounded">⚡</button>
-          <button type="button" onclick="document.getElementById('adminCatIcon').value='🌊'" class="p-1 hover:bg-purple-100 rounded">🌊</button>
-          <button type="button" onclick="document.getElementById('adminCatIcon').value='⚠️️'" class="p-1 hover:bg-purple-100 rounded">⚠️</button>
-          <button type="button" onclick="document.getElementById('adminCatIcon').value='🏨'" class="p-1 hover:bg-purple-100 rounded">🏨</button>
-          <button type="button" onclick="document.getElementById('adminCatIcon').value='⛽'" class="p-1 hover:bg-purple-100 rounded">⛽</button>
-          <button type="button" onclick="document.getElementById('adminCatIcon').value='🏧'" class="p-1 hover:bg-purple-100 rounded">🏧</button>
-          <button type="button" onclick="document.getElementById('adminCatIcon').value='🏫'" class="p-1 hover:bg-purple-100 rounded">🏫</button>
-          <button type="button" onclick="document.getElementById('adminCatIcon').value='🏥'" class="p-1 hover:bg-purple-100 rounded">🏥</button>
-          <button type="button" onclick="document.getElementById('adminCatIcon').value='🌳'" class="p-1 hover:bg-purple-100 rounded">🌳</button>
-          <button type="button" onclick="document.getElementById('adminCatIcon').value='🔥'" class="p-1 hover:bg-purple-100 rounded">🔥</button>
-          <button type="button" onclick="document.getElementById('adminCatIcon').value='📷'" class="p-1 hover:bg-purple-100 rounded">📷</button>
-          <button type="button" onclick="document.getElementById('adminCatIcon').value='🆘'" class="p-1 hover:bg-purple-100 rounded">🆘</button>
-        </div>
-        <input id="adminCatIcon" class="w-full p-3 border rounded-xl text-sm" placeholder="ไอคอน เช่น 💊">
-      </div>
-
-      <div>
-        <label class="text-xs font-bold text-gray-600">ชนิดข้อมูล</label>
-        <select id="adminCatType" class="w-full p-3 border rounded-xl text-sm mt-1">
-          <option value="store">🏬 ร้านค้า / บริการทั่วไป</option>
-          <option value="place">📍 สถานที่ / เหตุการณ์ทั่วไป</option>
-          <option value="photo_quest">📷 เควสขอรูปจากคนในพื้นที่</option>
-          <option value="help">🆘 ความช่วยเหลือชั่วคราว 2 ชั่วโมง</option>
-        </select>
-      </div>
-      <button onclick="addCategory()" class="w-full bg-purple-600 text-white py-3 rounded-xl font-extrabold">＋ เพิ่มหมวดหมู่</button>
-    </div>
-
-    <div class="mt-5">
-      <h4 class="font-bold text-sm mb-2">หมวดหมู่ปัจจุบัน</h4>
-      <div id="adminCategoryList" class="space-y-2"></div>
-    </div>
-
-    <button onclick="logoutAdmin()" class="w-full mt-5 bg-gray-100 py-3 rounded-xl text-xs font-bold text-gray-700">ออกจากโหมด Admin</button>
-  </div>
-</div>
-
-<!-- Image viewer -->
-<div id="imageViewer" class="modal-overlay fixed inset-0 bg-black/90 hidden items-center justify-center p-3" onclick="closeImageViewer()">
-  <button class="absolute top-5 right-5 text-white text-3xl z-[4000]">&times;</button>
-  <img id="largeImage" class="max-w-full max-h-[90vh] object-contain rounded-xl" onclick="event.stopPropagation()">
-</div>
-
-<input type="file" id="hiddenPhotoInput" accept="image/*" capture="environment" class="hidden" onchange="handleQuestPhoto(event)">
-
-<script>
-const map = L.map('map', { zoomControl:false }).setView([13.7563,100.5018], 12);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom:19,
-  attribution:'&copy; OpenStreetMap'
-}).addTo(map);
-
-const HOUR_MS = 3600000;
-const QUEST_LIMIT = 5;
-
-let currentMarkersOnMap = [];
-let isPinMode = false;
-let tempCoords = null;
-let selectedCategory = null;
-let activeQuest = null;
-let currentUser = null;
-
-const defaultCategories = [
-  {id:'coffee', name:'ร้านกาแฟ', icon:'☕', type:'store'},
-  {id:'restaurant', name:'ร้านอาหาร', icon:'🍜', type:'store'},
-  {id:'grocery', name:'ร้านขายของชำ', icon:'🛒', type:'store'},
-  {id:'pharmacy', name:'ร้านขายยา', icon:'💊', type:'store'},
-  {id:'ev', name:'จุดชาร์จรถไฟฟ้า', icon:'⚡', type:'place'},
-  {id:'flood', name:'น้ำท่วม / รอการระบาย', icon:'🌊', type:'place'},
-  {id:'accident', name:'อุบัติเหตุ / สิ่งกีดขวาง', icon:'⚠️', type:'place'},
-  {id:'photo', name:'ขอดูรูป ณ จุดนั้น', icon:'📷', type:'photo_quest'},
-  {id:'help', name:'ขอความช่วยเหลือ', icon:'🆘', type:'help'}
-];
-
-let categories = JSON.parse(localStorage.getItem('pukpan_categories') || 'null') || defaultCategories;
-let reportsData = JSON.parse(localStorage.getItem('pukpan_reports') || '[]');
-
-function persist() {
-  localStorage.setItem('pukpan_categories', JSON.stringify(categories));
-  localStorage.setItem('pukpan_reports', JSON.stringify(reportsData));
-}
-
-function getCategory(id) {
-  return categories.find(c => c.id === id) || {name:'ไม่ระบุ', icon:'📍', type:'place'};
-}
-
-function refreshCategoryUI() {
-  const filter = document.getElementById('categoryFilter');
-  if (filter) {
-    filter.innerHTML = '<option value="all">📌 ทั้งหมด</option>' +
-      categories.map(c => `<option value="${c.id}">${c.icon}${escapeHtml(c.name)}</option>`).join('');
-  }
-
-  const choices = document.getElementById('categoryChoices');
-  if (choices) {
-    choices.innerHTML = categories.map(c => `
-      <button onclick="chooseCategory('${c.id}')"
-        class="p-3 rounded-2xl border bg-gray-50 hover:bg-purple-50 active:scale-95 text-left">
-        <div class="text-2xl">${c.icon}</div>
-        <div class="font-extrabold text-xs mt-1">${escapeHtml(c.name)}</div>
-        <div class="text-[9px] text-gray-500 mt-0.5">
-          ${c.type === 'store' ? 'ร้านค้า / บริการ' : c.type === 'photo_quest' ? 'เควสขอรูป 5 คน' : c.type === 'help' ? 'อยู่ 2 ชม.' : 'ปักข้อมูล'}
-        </div>
-      </button>
-    `).join('');
-  }
-
-  renderAdminCategories();
-}
-
-async function searchLocation() {
-  const query = document.getElementById('searchQuery').value.trim();
-  if (!query) return alert('กรุณากรอกชื่อสถานที่ที่ต้องการค้นหา');
-
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
-    const data = await res.json();
-    if (!data || data.length === 0) {
-      alert('ไม่พบสถานที่ดังกล่าว กรุณาลองใหม่อีกครั้ง');
-      return;
-    }
-    const loc = data[0];
-    const latlng = [parseFloat(loc.lat), parseFloat(loc.lon)];
-    
-    map.flyTo(latlng, 16);
-    tempCoords = { lat: latlng[0], lng: latlng[1] };
-    
-    if (confirm(`พบสถานที่: ${loc.display_name}\nต้องการวางหมุดที่ตำแหน่งนี้หรือไม่?`)) {
-      document.getElementById('actionModal').classList.remove('hidden');
-    }
-  } catch (err) {
-    console.error(err);
-    alert('เกิดข้อผิดพลาดในการค้นหาสถานที่');
-  }
-}
-
-function startPinning() {
-  isPinMode = true;
-  document.getElementById('pinGuide').classList.remove('hidden');
-  document.body.classList.add('pin-mode');
-  map.dragging.enable();
-  // อนุญาตให้ใช้เมาส์ซูมอิน/ซูมเอาท์ได้ตามปกติขณะเลือกหมุด
-  map.scrollWheelZoom.enable();
-  map.doubleClickZoom.enable();
-}
-
-function cancelPinLocation() {
-  isPinMode = false;
-  document.getElementById('pinGuide').classList.add('hidden');
-  document.body.classList.remove('pin-mode');
-}
-
-function confirmPinLocation() {
-  if (!isPinMode) return;
-  tempCoords = map.getCenter();
-  cancelPinLocation();
-  document.getElementById('actionModal').classList.remove('hidden');
-}
-
-function chooseCategory(id) {
-  selectedCategory = getCategory(id);
-  closeActionModal();
-
-  document.getElementById('reportTitle').innerText = `${selectedCategory.icon}${selectedCategory.name}`;
-  document.getElementById('reportSubtitle').innerText =
-    selectedCategory.type === 'help' ? 'รายการนี้จะอยู่บนแผนที่ 2 ชั่วโมง' :
-    selectedCategory.type === 'photo_quest' ? 'ชวนคนในพื้นที่ช่วยกันถ่ายรูป สูงสุด 5 รูป' :
-    'เลือกข้อมูลรายละเอียดร้านค้าหรือสถานที่';
-
-  buildReportFields();
-  document.getElementById('reportModal').classList.remove('hidden');
-}
-
-function buildReportFields() {
-  const c = selectedCategory;
-  let html = '';
-
-  if (c.type === 'store' || c.id === 'coffee' || c.id === 'restaurant' || c.id === 'grocery' || c.id === 'pharmacy') {
-    html += choiceField('ช่วงราคา / เรทราคา', ['฿ ต่ำกว่า 100','฿฿ 100–300','฿฿฿ มากกว่า 300']);
-    html += choiceField('สถานะร้าน', ['เปิดให้บริการ','ปิดบริการชั่วคราว','ไม่ทราบ']);
-  } else if (c.id === 'ev') {
-    html += choiceField('สถานะจุดชาร์จ', ['ว่าง','กำลังใช้งาน','เสีย / ใช้ไม่ได้','ไม่ทราบ']);
-    html += choiceField('ประเภทหัวชาร์จ', ['AC','DC','AC + DC','ไม่ทราบ']);
-  } else if (c.id === 'flood') {
-    html += sliderField('ระดับน้ำโดยประมาณ', 0, 100, 20, 'ซม.');
-    html += choiceField('รถผ่านได้ไหม', ['รถเล็กผ่านได้','เฉพาะรถใหญ่','ผ่านไม่ได้','ไม่ทราบ']);
-  } else if (c.id === 'accident') {
-    html += choiceField('สภาพจุดเกิดเหตุ', ['กีดขวางเล็กน้อย','กีดขวาง 1 ช่องทาง','กีดขวางทั้งหมด','อันตรายมาก']);
-    html += choiceField('การจราจร', ['ยังผ่านได้','รถชะลอ','ติดขัดมาก','ผ่านไม่ได้']);
-  } else if (c.type === 'photo_quest') {
-    html += `
-      <div class="bg-purple-50 border border-purple-100 rounded-2xl p-4">
-        <div class="font-extrabold text-sm">📷 ขอรูปจากคนที่อยู่ใกล้จุดนี้</div>
-        <p class="text-xs text-gray-600 mt-1">ระบบจะเปิดเป็นเควสให้คนอื่นช่วยถ่ายรูปได้สูงสุด ${QUEST_LIMIT} คน</p>
-      </div>
-    `;
-  } else if (c.type === 'help') {
-    html += `
-      <div class="bg-red-50 border border-red-100 rounded-2xl p-4">
-        <div class="font-extrabold text-sm text-red-700">🆘 ความช่วยเหลือชั่วคราว</div>
-        <p class="text-xs text-gray-600 mt-1">หมุดนี้จะหมดอายุอัตโนมัติใน 2 ชั่วโมง</p>
-      </div>
-      ${choiceField('ประเภทความช่วยเหลือ', ['รถเสีย','อุบัติเหตุ','ต้องการน้ำ/อาหาร','หลงทาง','อื่น ๆ'])}
-    `;
-  } else {
-    html += choiceField('สถานะ', ['ใช้งานได้','คนเยอะ','ควรหลีกเลี่ยง','ไม่ทราบ']);
-  }
-
-  html += photoField();
-  document.getElementById('reportFields').innerHTML = html;
-}
-
-function choiceField(label, options) {
-  return `
-    <div>
-      <label class="block text-xs font-bold text-gray-700 mb-1">${label}</label>
-      <div class="flex gap-1.5 overflow-x-auto pb-1">
-        ${options.map((o,i)=>`
-          <button type="button" onclick="selectChoice(this)"
-            data-value="${escapeAttr(o)}"
-            class="choice-btn whitespace-nowrap px-3 py-2 rounded-xl border bg-gray-50 text-[11px] font-bold ${i===0?'ring-2 ring-purple-400 bg-purple-50':''}">
-            ${escapeHtml(o)}
-          </button>
-        `).join('')}
-      </div>
-    </div>
-  `;
-}
-
-function selectChoice(btn) {
-  const group = btn.parentElement;
-  group.querySelectorAll('.choice-btn').forEach(x => x.classList.remove('ring-2','ring-purple-400','bg-purple-50'));
-  btn.classList.add('ring-2','ring-purple-400','bg-purple-50');
-}
-
-function sliderField(label, min, max, value, unit) {
-  return `
-    <div class="bg-blue-50 p-3 rounded-xl">
-      <div class="flex justify-between text-xs font-bold">
-        <span>${label}</span><span id="sliderLabel">${value}${unit}</span>
-      </div>
-      <input id="waterSlider" type="range" min="${min}" max="${max}" value="${value}" step="5"
-        class="w-full mt-2 accent-blue-600" oninput="document.getElementById('sliderLabel').innerText=this.value+' ${unit}'">
-    </div>
-  `;
-}
-
-function photoField() {
-  return `
-    <div>
-      <label class="block text-xs font-bold text-gray-700 mb-1">รูปภาพ (ถ้ามี)</label>
-      <button type="button" onclick="document.getElementById('normalPhotoInput').click()"
-        class="w-full border-2 border-dashed border-gray-300 p-3 rounded-xl text-xs text-gray-600 font-bold">
-        📷 ถ่ายรูป / เลือกรูป
-      </button>
-      <input id="normalPhotoInput" type="file" accept="image/*" capture="environment" class="hidden" onchange="previewNormalPhoto(event)">
-      <div id="normalPhotoPreview" class="hidden mt-2"></div>
-    </div>
-  `;
-}
-
-function previewNormalPhoto(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    document.getElementById('normalPhotoPreview').innerHTML =
-      `<img src="${ev.target.result}" class="w-full h-40 object-cover rounded-xl thumb-img" onclick="openImageViewer(this.src)">`;
-    document.getElementById('normalPhotoPreview').classList.remove('hidden');
-    document.getElementById('normalPhotoPreview').dataset.src = ev.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-function getExpirationTime(category) {
-  const now = Date.now();
-  if (category.type === 'help') return now + 2 * HOUR_MS;
-  if (category.type === 'photo_quest') return now + 2 * 24 * HOUR_MS;
-  return now + 24 * HOUR_MS;
-}
-
-function saveReport() {
-  if (!selectedCategory || !tempCoords) return;
-
-  const buttons = [...document.querySelectorAll('#reportFields .choice-btn')];
-  const choices = buttons.filter(b => b.classList.contains('ring-2')).map(b => b.dataset.value);
-
-  let imgUrl = '';
-  const p = document.getElementById('normalPhotoPreview');
-  if (p && p.dataset.src) imgUrl = p.dataset.src;
-
-  const report = {
-    id: Date.now(),
-    category: selectedCategory.id,
-    categoryName: selectedCategory.name,
-    categoryIcon: selectedCategory.icon,
-    lat: tempCoords.lat,
-    lng: tempCoords.lng,
-    createdAt: Date.now(),
-    expiresAt: getExpirationTime(selectedCategory),
-    choices,
-    waterLevel: document.getElementById('waterSlider')?.value || null,
-    imgUrl,
-    questImages: [],
-    questAnswers: 0,
-    userEmail: currentUser?.email || 'guest'
-  };
-
-  const savedCategoryId = selectedCategory.id;
-  reportsData.unshift(report);
-  persist();
-  closeReportModal();
-  showOnlyCategory(savedCategoryId);
-  alert(selectedCategory.type === 'photo_quest' ? '📷 เปิดเควสขอรูปแล้ว' : '📍 ปัก-ปันสำเร็จ');
-}
-
-function renderMarkers(data) {
-  currentMarkersOnMap.forEach(m => map.removeLayer(m));
-  currentMarkersOnMap = [];
-
-  const now = Date.now();
-  const active = data.filter(x => x.expiresAt > now);
-  const currentZoom = map.getZoom();
-  
-  let iconSizePx = Math.max(16, Math.min(28, currentZoom * 1.8));
-  let anchorOffset = iconSizePx / 2;
-
-  active.forEach(item => {
-    const c = getCategory(item.category);
-    const marker = L.marker([item.lat,item.lng], {
-      icon: L.divIcon({
-        className:'',
-        html:`<div style="font-size:${iconSizePx}px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3)); transition: font-size 0.2s;">${c.icon}</div>`,
-        iconSize:[iconSizePx + 4, iconSizePx + 4],
-        iconAnchor:[anchorOffset, iconSizePx]
-      })
-    }).addTo(map);
-
-    const questCount = item.questImages?.length || 0;
-    const questHtml = c.type === 'photo_quest' ? `
-      <div class="mt-2 bg-purple-50 rounded-xl p-2">
-        <div class="text-[10px] font-extrabold">📷 เควส ${questCount}/${QUEST_LIMIT} รูป</div>
-        <button onclick="openQuest(${item.id})" class="mt-1 w-full bg-purple-600 text-white rounded-lg py-1.5 text-[10px] font-bold">ช่วยดู / ส่งรูป</button>
-      </div>` : '';
-
-    const imageHtml = item.imgUrl ?
-      `<img src="${item.imgUrl}" class="w-full h-28 object-cover rounded-xl mb-2 thumb-img" onclick="openImageViewer('${item.imgUrl}')">` : '';
-
-    const choiceHtml = item.choices?.length ?
-      `<p class="text-[10px] text-gray-600 mb-2">• ${item.choices.map(escapeHtml).join('<br>• ')}</p>` : '';
-
-    const helpTime = c.type === 'help' ?
-      `<p class="text-[9px] text-red-600 font-bold mt-1">🕑 ความช่วยเหลือชั่วคราว</p>` : '';
-
-    // ปุ่มเปิดนำทางด้วย Google Maps
-    const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`;
-    const navBtnHtml = `
-      <a href="${gmapsUrl}" target="_blank" class="block text-center mt-2 w-full bg-green-600 hover:bg-green-700 text-white py-1.5 rounded-lg text-[10px] font-bold shadow">
-        🗺️ นำทางด้วย Google Maps
-      </a>
-    `;
-
-    const popupContent = `
-      <div class="w-56 p-1">
-        <h4 class="font-extrabold text-sm text-purple-700">${c.icon} ${escapeHtml(c.name)}</h4>${imageHtml}
-        ${choiceHtml}${item.waterLevel ? `<p class="text-[10px] font-bold mb-1">🌊 ระดับน้ำ ${item.waterLevel} ซม.</p>`:''}
-        ${helpTime}
-        ${questHtml}${navBtnHtml}
-        <p class="text-[9px] text-gray-400 mt-2">${timeAgo(item.createdAt)}</p>${isAdminUser() ? `<button onclick="deleteReport(${item.id})" class="mt-2 w-full bg-red-100 text-red-600 py-1.5 rounded-lg text-[10px] font-bold">🗑️️ ลบหมุด</button>`:''}
-      </div>
-    `;
-
-    marker.bindPopup(popupContent);
-
-    marker.on('click', () => {
-      setTimeout(() => {
-        map.invalidateSize();
-        marker.openPopup();
-      }, 50);
-    });
-
-    currentMarkersOnMap.push(marker);
-  });
-}
-
-map.on('zoomend', () => {
-  renderMarkers(reportsData);
-});
-
-function filterMarkers() {
-  clearNearbyMode(false);
-  const id = document.getElementById('categoryFilter').value;
-  renderMarkers(id === 'all' ? reportsData : reportsData.filter(x => x.category === id));
-}
-
-function showOnlyCategory(id) {
-  document.getElementById('categoryFilter').value = id;
-  clearNearbyMode(false);
-  renderMarkers(reportsData.filter(x => x.category === id));
-}
-
-function openQuest(id) {
-  activeQuest = reportsData.find(x => x.id === id);
-  if (!activeQuest) return;
-  const images = activeQuest.questImages || [];
-  document.getElementById('questCount').innerText = `${images.length}/${QUEST_LIMIT} รูป`;
-  document.getElementById('questProgressBar').style.width = `${images.length / QUEST_LIMIT * 100}%`;
-  document.getElementById('questImages').innerHTML = images.length ?
-    images.map(src => `<img src="${src}" class="w-full h-32 object-cover rounded-xl thumb-img" onclick="openImageViewer('${src}')">`).join('') :
-    `<div class="col-span-2 text-center text-xs text-gray-400 py-8">ยังไม่มีคนส่งรูป</div>`;
-  document.getElementById('questPhotoBtn').disabled = images.length >= QUEST_LIMIT;
-  document.getElementById('questPhotoBtn').classList.toggle('opacity-40', images.length >= QUEST_LIMIT);
-  document.getElementById('questModal').classList.remove('hidden');
-}
-
-function answerQuestWithPhoto() {
-  if (!activeQuest || (activeQuest.questImages || []).length >= QUEST_LIMIT) return;
-  document.getElementById('hiddenPhotoInput').click();
-}
-
-function handleQuestPhoto(e) {
-  const file = e.target.files[0];
-  if (!file || !activeQuest) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    activeQuest.questImages = activeQuest.questImages || [];
-    if (activeQuest.questImages.length < QUEST_LIMIT) {
-      activeQuest.questImages.push(ev.target.result);
-      activeQuest.questAnswers = activeQuest.questImages.length;
-      persist();
-      renderMarkers(reportsData);
-      openQuest(activeQuest.id);
-    }
-  };
-  reader.readAsDataURL(file);
-  e.target.value = '';
-}
-
-function addCategory() {
-  const name = document.getElementById('adminCatName').value.trim();
-  const icon = document.getElementById('adminCatIcon').value.trim() || '📍';
-  const type = document.getElementById('adminCatType').value;
-  if (!name) return alert('กรุณาใส่ชื่อหมวดหมู่');
-
-  categories.push({
-    id: 'custom_' + Date.now(),
-    name, icon, type
-  });
-  persist();
-  document.getElementById('adminCatName').value = '';
-  document.getElementById('adminCatIcon').value = '';
-  refreshCategoryUI();
-}
-
-function renderAdminCategories() {
-  const el = document.getElementById('adminCategoryList');
-  if (!el) return;
-  el.innerHTML = categories.map(c => `
-    <div class="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl">
-      <div class="flex items-center gap-2">
-        <span class="text-xl">${c.icon}</span>
-        <div>
-          <div class="text-xs font-bold">${escapeHtml(c.name)}</div>
-          <div class="text-[9px] text-gray-400">${c.type}</div>
-        </div>
-      </div>
-      <button onclick="removeCategory('${c.id}')" class="text-red-500 text-xs font-bold">ลบ</button>
-    </div>
-  `).join('');
-}
-
-function removeCategory(id) {
-  if (defaultCategories.some(c => c.id === id)) return alert('หมวดเริ่มต้นไม่ควรถูกลบจากระบบ');
-  categories = categories.filter(c => c.id !== id);
-  persist();
-  refreshCategoryUI();
-}
-
-function toggleAdminPanel() {
-  if (isAdminUser()) {
-    document.getElementById('adminPanel').classList.remove('hidden');
-    renderAdminCategories();
-    return;
-  }
-  const password = window.prompt('กรุณากรอกรหัสผ่าน Admin (รหัสเริ่มต้น: @@@###jek)');
-  if (password === '@@@###jek') {
-    sessionStorage.setItem('pukpan_admin', '1');
-    const btn = document.getElementById('adminBtn');
-    if (btn) btn.innerText = '🔓 Admin';
-    document.getElementById('adminPanel').classList.remove('hidden');
-    renderAdminCategories();
-    renderMarkers(reportsData);
-  } else if (password !== null) {
-    window.alert('รหัสผ่าน Admin ไม่ถูกต้อง');
-  }
-}
-
-function closeAdminPanel() {
-  document.getElementById('adminPanel').classList.add('hidden');
-}
-
-function logoutAdmin() {
-  sessionStorage.removeItem('pukpan_admin');
-  const btn = document.getElementById('adminBtn');
-  if (btn) btn.innerText = '⚙️ Admin';
-  closeAdminPanel();
-  renderMarkers(reportsData);
-  alert('ออกจากโหมด Admin เรียบร้อยแล้ว');
-}
-
-function isAdminUser() {
-  return sessionStorage.getItem('pukpan_admin') === '1';
-}
-
-async function loginWithGoogle() {
-  if (!window.firebaseReady || typeof window.googleLogin !== 'function') {
-    const useDemo = window.confirm('ระบบยังไม่ได้ตั้งค่า Firebase Config จริง (Demo Mode)\nต้องการจำลองเข้าสู่ระบบหรือไม่?');
-    if (useDemo) {
-      currentUser = { displayName: 'ผู้ใช้งาน (Demo)', email: 'demo@pukpan.local' };
-      window.dispatchEvent(new CustomEvent("auth-changed", { detail: currentUser }));
-      alert('เข้าสู่ระบบแบบ Demo สำเร็จ');
-    }
-    return;
-  }
-  
-  if (currentUser) {
-    if (confirm('คุณต้องการออกจากระบบบัญชี Gmail นี้หรือไม่?')) {
-      if (window.googleLogout) {
-        await window.googleLogout();
-        currentUser = null;
-        window.dispatchEvent(new CustomEvent("auth-changed", { detail: null }));
-      }
-    }
-    return;
-  }
-
-  try {
-    const user = await window.googleLogin();
-    currentUser = user;
-    alert('เข้าสู่ระบบสำเร็จ: ' + (user.displayName || user.email));
-  } catch (err) {
-    console.error(err);
-    window.alert('เข้าสู่ระบบไม่สำเร็จ');
-  }
-}
-
-window.addEventListener('auth-changed', e => {
-  currentUser = e.detail;
-  const loginBtn = document.getElementById('loginBtn');
-  const badge = document.getElementById('userBadge');
-
-  if (currentUser) {
-    loginBtn.innerText = '👤 ' + (currentUser.displayName || 'บัญชี');
-    badge.innerText = currentUser.email || '';
-    badge.classList.remove('hidden');
-  } else {
-    loginBtn.innerText = '🔐 Gmail';
-    badge.classList.add('hidden');
-  }
-  renderMarkers(reportsData);
-});
-
-let nearbyMode = false;
-let nearbyCircle = null;
-let userLatLng = null;
-
-function getCurrentPositionSafe(onSuccess, onError) {
-  if (!navigator.geolocation) {
-    window.alert('เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่ง');
-    return;
-  }
-
-  navigator.geolocation.getCurrentPosition(
-    onSuccess,
-    err => {
-      window.alert('ไม่สามารถระบุตำแหน่ง GPS ได้ กรุณาเปิด Location Service');
-      if (typeof onError === 'function') onError(err);
-    },
-    { enableHighAccuracy:false, timeout:10000, maximumAge:60000 }
-  );
-}
-
-function showNearby() {
-  getCurrentPositionSafe(pos => {
-    userLatLng = [pos.coords.latitude, pos.coords.longitude];
-    nearbyMode = true;
-    map.flyTo(userLatLng, 15);
-    if (nearbyCircle) map.removeLayer(nearbyCircle);
-    // ขยายรัศมีเป็น 2,000 เมตร (2 กิโลเมตร) ตามความต้องการ
-    nearbyCircle = L.circle(userLatLng, {
-      radius:2000, color:'#8b5cf6', fillColor:'#a78bfa', fillOpacity:.12, weight:2
-    }).addTo(map);
-    document.getElementById('nearbyBar').classList.remove('hidden');
-    document.getElementById('categoryFilter').value='all';
-    renderNearby();
-  });
-}
-
-function renderNearby() {
-  if (!userLatLng) return;
-  renderMarkers(reportsData.filter(x =>
-    x.expiresAt > Date.now() && map.distance(userLatLng,[x.lat,x.lng]) <= 2000
-  ));
-}
-
-function clearNearbyMode(removeCircle=true) {
-  nearbyMode=false;
-  userLatLng=null;
-  document.getElementById('nearbyBar').classList.add('hidden');
-  if (removeCircle && nearbyCircle) {
-    map.removeLayer(nearbyCircle);
-    nearbyCircle=null;
-  }
-}
-
-function locateUser() {
-  getCurrentPositionSafe(pos => {
-    const latlng = [pos.coords.latitude, pos.coords.longitude];
-    map.flyTo(latlng, 17);
-    if (window.userLocationMarker) map.removeLayer(window.userLocationMarker);
-    window.userLocationMarker = L.circleMarker(latlng, {
-      radius:8, color:'#7c3aed', fillColor:'#a78bfa', fillOpacity:.9, weight:3
-    }).addTo(map).bindPopup('📍 ตำแหน่งของฉัน').openPopup();
-  });
-}
-
-function closeActionModal() {
-  document.getElementById('actionModal').classList.add('hidden');
-}
-
-function closeReportModal() {
-  document.getElementById('reportModal').classList.add('hidden');
-  selectedCategory = null;
-}
-
-function closeQuestModal() {
-  document.getElementById('questModal').classList.add('hidden');
-  activeQuest = null;
-}
-
-function openImageViewer(src) {
-  document.getElementById('largeImage').src = src;
-  document.getElementById('imageViewer').classList.remove('hidden');
-  document.getElementById('imageViewer').classList.add('flex');
-}
-
-function closeImageViewer() {
-  document.getElementById('imageViewer').classList.add('hidden');
-  document.getElementById('imageViewer').classList.remove('flex');
-}
-
-function deleteReport(id) {
-  if (!isAdminUser()) return;
-  if (confirm('ลบหมุดนี้ใช่หรือไม่?')) {
-    reportsData = reportsData.filter(x => x.id !== id);
-    persist();
-    renderMarkers(reportsData);
-  }
-}
-
-function timeAgo(ts) {
-  const m = Math.floor((Date.now()-ts)/60000);
-  if (m < 1) return 'เมื่อสักครู่';
-  if (m < 60) return `${m} นาทีที่แล้ว`;
-  return `${Math.floor(m/60)} ชม.ที่แล้ว`;
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
-}
-
-function escapeAttr(s) {
-  return escapeHtml(s).replace(/`/g,'&#096;');
-}
-
-if (isAdminUser()) {
-  const btn = document.getElementById('adminBtn');
-  if (btn) btn.innerText = '🔓 Admin';
-}
-
-refreshCategoryUI();
-renderMarkers(reportsData);
-setInterval(() => renderMarkers(reportsData), 30000);
-
-Object.assign(window, {
-  toggleAdminPanel, locateUser, showNearby, startPinning, cancelPinLocation,
-  confirmPinLocation, loginWithGoogle, saveReport, closeAdminPanel, logoutAdmin, searchLocation
-});
-</script>
-
+    </script>
+
+    <!-- Leaflet JS สำหรับควบคุมแผนที่ -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // ตั้งค่าเริ่มต้นแผนที่ (พิกัดประเทศไทย)
+        const map = L.map('map').setView([13.736717, 100.523186], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+    </script>
 </body>
 </html>
