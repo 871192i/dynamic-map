@@ -13,10 +13,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
-    /* บังคับให้แผนที่เต็มจอสมบูรณ์บนมือถือ */
     html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; }
     #map { position: absolute; top: 0; bottom: 0; width: 100%; height: 100%; z-index: 1; }
-    
     .ui-layer { z-index: 1000; }
     .modal-overlay { z-index: 2000; }
   </style>
@@ -26,71 +24,110 @@
   <!-- แผนที่เต็มจอ -->
   <div id="map"></div>
 
-  <!-- แถบ Header ลอยด้านบน (รวมระบบ Google Auth และปุ่ม Admin) -->
-  <div class="ui-layer fixed top-3 left-3 right-3 flex justify-between items-center bg-white/90 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-lg border border-gray-100">
-    <div class="flex items-center gap-2">
-      <span class="text-2xl">🚨</span>
-      <div>
-        <h1 class="text-sm font-extrabold text-gray-800 leading-tight">ปัก-ปัน (Puk-Pan)</h1>
-        <p class="text-[9px] text-blue-600 font-semibold" id="auth-status-text">กรุณาเข้าสู่ระบบด้วย Google</p>
+  <!-- แถบ Header ลอยด้านบน (รวมโลโก้, ค้นหาสถานที่, ปุ่ม Admin, ล็อกอิน) -->
+  <div class="ui-layer fixed top-3 left-3 right-3 flex flex-col sm:flex-row justify-between items-center bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-lg border border-gray-100 gap-2">
+    <div class="flex items-center justify-between w-full sm:w-auto gap-2">
+      <div class="flex items-center gap-2">
+        <span class="text-2xl">🚨</span>
+        <div>
+          <h1 class="text-sm font-extrabold text-gray-800 leading-tight">ปัก-ปัน (Puk-Pan)</h1>
+          <p class="text-[9px] text-blue-600 font-semibold" id="auth-status-text">กรุณาเข้าสู่ระบบด้วย Google</p>
+        </div>
+      </div>
+      <!-- ปุ่มระบบบนมือถือจัดกลุ่มขวา -->
+      <div class="flex items-center gap-1.5 sm:hidden">
+        <button id="google-login-btn-mob" class="text-[10px] bg-blue-600 text-white px-2.5 py-1.5 rounded-xl font-bold">เข้าสู่ระบบ</button>
+        <button id="google-logout-btn-mob" style="display:none;" class="text-[10px] bg-gray-200 px-2 py-1.5 rounded-xl font-bold text-gray-700">ออก</button>
+        <button onclick="toggleAdminLogin()" id="adminBtnMob" class="text-[10px] bg-gray-100 px-2.5 py-1.5 rounded-xl border font-bold text-gray-700">🔒 แอดมิน</button>
       </div>
     </div>
-    <div class="flex items-center gap-2">
-      <!-- ปุ่มล็อกอิน / ออกจากระบบ Firebase -->
-      <button id="google-login-btn" class="text-[11px] bg-blue-600 active:bg-blue-700 text-white px-3 py-1.5 rounded-xl font-bold shadow-sm">
-        เข้าสู่ระบบ
-      </button>
-      <button id="google-logout-btn" style="display: none;" class="text-[11px] bg-gray-200 active:bg-gray-300 px-2.5 py-1.5 rounded-xl font-bold text-gray-700">
-        ออกจากระบบ
-      </button>
 
-      <button onclick="toggleAdminLogin()" id="adminBtn" class="text-[11px] bg-gray-100 active:bg-gray-200 px-2.5 py-1.5 rounded-xl border font-bold text-gray-700">
-        🔒 แอดมิน
-      </button>
+    <!-- ช่องค้นหาสถานที่บนแถบเดียวกัน -->
+    <div class="flex items-center w-full sm:w-72 gap-1 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1 shadow-inner">
+      <span class="text-sm">🔍</span>
+      <input type="text" id="searchLocationInput" placeholder="ค้นหาสถานที่ เช่น เซ็นทรัล..." class="w-full bg-transparent text-xs outline-none text-gray-700 font-medium" onkeydown="if(event.key==='Enter') searchLocation()">
+      <button onclick="searchLocation()" class="text-xs bg-blue-600 text-white px-2 py-1 rounded-lg font-bold shrink-0">ค้นหา</button>
+    </div>
+
+    <!-- ปุ่มควบคุมฝั่งเดสก์ท็อป -->
+    <div class="hidden sm:flex items-center gap-2">
+      <button id="google-login-btn" class="text-[11px] bg-blue-600 text-white px-3 py-1.5 rounded-xl font-bold shadow-sm">เข้าสู่ระบบ</button>
+      <button id="google-logout-btn" style="display: none;" class="text-[11px] bg-gray-200 px-2.5 py-1.5 rounded-xl font-bold text-gray-700">ออกจากระบบ</button>
+      <button onclick="toggleAdminLogin()" id="adminBtn" class="text-[11px] bg-gray-100 px-2.5 py-1.5 rounded-xl border font-bold text-gray-700">🔒 แอดมิน</button>
     </div>
   </div>
 
-  <!-- ปุ่มลอย GPS หาตำแหน่งปัจจุบัน (ขวาบน) -->
-  <button onclick="locateUser()" class="ui-layer fixed top-20 right-4 bg-white p-3 rounded-full shadow-xl border border-gray-200 text-gray-700 active:scale-95 transition">
-    🎯
-  </button>
+  <!-- ปุ่มควบคุมด้านขวา (GPS, ซูมอิน/เอาท์ขนาดเล็ก) -->
+  <div class="ui-layer fixed top-24 right-4 flex flex-col gap-2">
+    <button onclick="locateUser()" class="bg-white p-2.5 rounded-full shadow-xl border border-gray-200 text-gray-700 active:scale-95 transition text-sm" title="ตำแหน่งของฉัน">
+      🎯
+    </button>
+    <button onclick="map.zoomIn()" class="bg-white w-9 h-9 rounded-full shadow-xl border border-gray-200 text-gray-700 font-bold active:scale-95 transition text-base flex items-center justify-center" title="ซูมเข้า">
+      +
+    </button>
+    <button onclick="map.zoomOut()" class="bg-white w-9 h-9 rounded-full shadow-xl border border-gray-200 text-gray-700 font-bold active:scale-95 transition text-base flex items-center justify-center" title="ซูมออก">
+      -
+    </button>
+  </div>
 
-  <!-- ปุ่มใหญ่ปักแจ้งเหตุ (ลอยอยู่ขวาล่าง) -->
-  <button onclick="startPinning()" class="ui-layer fixed bottom-6 right-4 bg-red-600 active:bg-red-700 text-white font-extrabold py-3.5 px-5 rounded-full shadow-2xl flex items-center gap-2 border-2 border-white transition transform active:scale-95">
-    <span class="text-xl">📍</span> <span class="text-sm">ปักแจ้งเหตุตรงนี้</span>
+  <!-- แผงควบคุมตั้งค่ารัศมี "ฉันอยู่ตรงนี้" (ลอยกลางขวาเหนือปุ่มปักหมุด) -->
+  <div class="ui-layer fixed bottom-20 right-4 bg-white/95 backdrop-blur px-3 py-2 rounded-2xl shadow-xl border border-gray-200 flex items-center gap-2">
+    <span class="text-xs font-bold text-gray-700">🎯 รัศมีรอบตัว:</span>
+    <select id="radiusSelect" onchange="updateUserRadius()" class="text-xs bg-gray-50 border rounded-lg p-1 font-bold text-blue-600 outline-none">
+      <option value="0">ปิดรัศมี</option>
+      <option value="500">500 เมตร</option>
+      <option value="1000" selected>1 กม.</option>
+      <option value="3000">3 กม.</option>
+      <option value="5000">5 กม.</option>
+    </select>
+  </div>
+
+  <!-- ปุ่มใหญ่ปักแจ้งเหตุ (ลอยขวาล่าง) -->
+  <button onclick="startPinning()" class="ui-layer fixed bottom-6 right-4 bg-red-600 active:bg-red-700 text-white font-extrabold py-3 px-4 rounded-full shadow-2xl flex items-center gap-2 border-2 border-white transition transform active:scale-95 text-xs">
+    <span class="text-lg">📍</span> <span>ปักจุด/ร้านค้า</span>
   </button>
 
   <!-- ตัวกรองหมวดหมู่แบบย่อ (ลอยล่างซ้าย) -->
-  <div class="ui-layer fixed bottom-6 left-4 max-w-[160px] md:max-w-xs">
+  <div class="ui-layer fixed bottom-6 left-4 max-w-[170px]">
     <select id="categoryFilter" class="w-full p-2.5 border-2 border-blue-500 rounded-2xl text-xs bg-white/95 font-bold shadow-xl outline-none text-gray-800" onchange="filterMarkers()">
-      <option value="all">🚨 เหตุทั้งหมด</option>
+      <option value="all">🚨 หมุดทั้งหมด</option>
       <option value="flood">🌊 น้ำท่วมขัง</option>
       <option value="accident">⚠️ อุบัติเหตุ</option>
       <option value="utility">🔌 ไฟฟ้า/ประปา</option>
       <option value="help">🆘 ขอความช่วยเหลือ</option>
+      <option value="shop_cafe">☕ ร้านกาแฟ</option>
+      <option value="shop_grocery">🛒 ร้านขายของชำ</option>
+      <option value="shop_general">🏪 ร้านค้าทั่วไปอื่นๆ</option>
     </select>
   </div>
 
-  <!-- Modal ฟอร์มแจ้งเหตุบนมือถือ -->
+  <!-- Modal ฟอร์มปักหมุดและเลือกไอคอนหลากหลาย -->
   <div id="reportModal" class="modal-overlay fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
     <div class="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 shadow-2xl overflow-y-auto max-h-[85vh] transition-all">
       <div class="flex justify-between items-center border-b pb-3 mb-3">
-        <h3 class="font-bold text-base text-gray-800 flex items-center gap-2">📍 กรอกข้อมูลแจ้งเหตุ</h3>
+        <h3 class="font-bold text-base text-gray-800 flex items-center gap-2">📍 กำหนดรายละเอียดจุดปัก</h3>
         <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold px-2">&times;</button>
       </div>
 
-      <form id="reportForm" onsubmit="saveReport(event)" class="space-y-4">
+      <form id="reportForm" onsubmit="saveReport(event)" class="space-y-3">
         <div>
-          <label class="block text-xs font-bold text-gray-700 mb-1">1. ประเภทเหตุการณ์</label>
-          <select id="formCategory" class="w-full p-3 border rounded-xl text-xs bg-gray-50 font-bold text-gray-800" onchange="toggleFloodOptions()">
-            <option value="flood">🌊 น้ำท่วม / รอการระบาย</option>
-            <option value="accident">⚠️ อุบัติเหตุ / กิ่งไม้ขวางทาง</option>
-            <option value="utility">🔌 ไฟฟ้า / ประปาขัดข้อง</option>
-            <option value="help">🆘 ขอความช่วยเหลือด่วน</option>
+          <label class="block text-xs font-bold text-gray-700 mb-1">1. เลือกประเภทและไอคอนหมุด</label>
+          <select id="formCategory" class="w-full p-2.5 border rounded-xl text-xs bg-gray-50 font-bold text-gray-800" onchange="handleCategoryChange()">
+            <optgroup label="🚨 หมวดเหตุการณ์ / แจ้งเตือนภัย">
+              <option value="flood">🌊 น้ำท่วม / รอการระบาย</option>
+              <option value="accident">⚠️ อุบัติเหตุ / กิ่งไม้ขวางทาง</option>
+              <option value="utility">🔌 ไฟฟ้า / ประปาขัดข้อง</option>
+              <option value="help">🆘 ขอความช่วยเหลือด่วน</option>
+            </optgroup>
+            <optgroup label="🏪 หมวดร้านค้าและบริการ">
+              <option value="shop_cafe">☕ ร้านกาแฟ / คาเฟ่</option>
+              <option value="shop_grocery">🛒 ร้านขายของชำ / ร้านสะดวกซื้อ</option>
+              <option value="shop_general">🏪 ร้านค้าทั่วไป / บริการอื่นๆ</option>
+            </optgroup>
           </select>
         </div>
 
-        <!-- แถบเลื่อนระดับน้ำ -->
+        <!-- แถบเลื่อนระดับน้ำ (แสดงเฉพาะเมื่อเลือกหมวดน้ำท่วม) -->
         <div id="floodSliderGroup" class="bg-blue-50 p-3 rounded-xl border border-blue-100">
           <div class="flex justify-between text-xs font-bold text-blue-900 mb-1">
             <span>🌊 ระดับน้ำขัง:</span>
@@ -99,44 +136,45 @@
           <input type="range" id="waterLevel" min="0" max="100" value="20" step="5" class="w-full accent-blue-600 cursor-pointer h-2" oninput="updateWaterLabel(this.value)">
         </div>
 
-        <div>
-          <label class="block text-xs font-bold text-gray-700 mb-1.5">2. การสัญจรของรถยนต์</label>
+        <div id="passableGroup">
+          <label class="block text-xs font-bold text-gray-700 mb-1">การสัญจรของรถยนต์</label>
           <div class="grid grid-cols-3 gap-1.5">
-            <button type="button" onclick="selectPassable('รถเล็กผ่านได้', this)" class="pass-btn p-2 text-[11px] border rounded-xl font-bold text-center bg-green-50 border-green-300 text-green-700 ring-2 ring-blue-500">🚗 รถเล็กผ่านได้</button>
-            <button type="button" onclick="selectPassable('เฉพาะรถใหญ่', this)" class="pass-btn p-2 text-[11px] border rounded-xl font-bold text-center bg-yellow-50 border-yellow-300 text-yellow-700">🚚 เฉพาะรถใหญ่</button>
+            <button type="button" onclick="selectPassable('รถเล็กผ่านได้', this)" class="pass-btn p-2 text-[11px] border rounded-xl font-bold text-center bg-green-50 border-green-300 text-green-700 ring-2 ring-blue-500">🚗 ผ่านได้</button>
+            <button type="button" onclick="selectPassable('เฉพาะรถใหญ่', this)" class="pass-btn p-2 text-[11px] border rounded-xl font-bold text-center bg-yellow-50 border-yellow-300 text-yellow-700">🚚 รถใหญ่</button>
             <button type="button" onclick="selectPassable('ผ่านไม่ได้', this)" class="pass-btn p-2 text-[11px] border rounded-xl font-bold text-center bg-red-50 border-red-300 text-red-700">⛔ ผ่านไม่ได้</button>
           </div>
           <input type="hidden" id="passableValue" value="รถเล็กผ่านได้">
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-gray-700 mb-1">3. ถ่ายภาพ / เลือกรูป</label>
+          <label class="block text-xs font-bold text-gray-700 mb-1">2. ถ่ายภาพ / เลือกรูป</label>
           <input type="file" id="imageInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageUpload(event)">
-          <button type="button" onclick="document.getElementById('imageInput').click()" class="w-full border-2 border-dashed border-gray-300 p-3 rounded-xl text-xs text-gray-600 flex items-center justify-center gap-2 bg-gray-50 active:bg-gray-100 transition">
-            <span class="text-lg">📷</span> <span id="uploadBtnText" class="font-bold">กดเพื่อถ่ายรูป หรือ เลือกรูปภาพ</span>
+          <button type="button" onclick="document.getElementById('imageInput').click()" class="w-full border-2 border-dashed border-gray-300 p-2.5 rounded-xl text-xs text-gray-600 flex items-center justify-center gap-2 bg-gray-50 active:bg-gray-100 transition">
+            <span class="text-base">📷</span> <span id="uploadBtnText" class="font-bold">กดเพื่อถ่ายรูป หรือ เลือกรูปภาพ</span>
           </button>
           <div id="imagePreviewContainer" class="hidden mt-2 relative">
-            <img id="imagePreview" class="w-full h-32 object-cover rounded-xl border">
-            <button type="button" onclick="removeImage()" class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 text-xs font-bold">&times;</button>
+            <img id="imagePreview" class="w-full h-28 object-cover rounded-xl border">
+            <button type="button" onclick="removeImage()" class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs font-bold">&times;</button>
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-gray-700 mb-1">4. รายละเอียดเพิ่มเติม (ถ้ามี)</label>
-          <input type="text" id="formDesc" placeholder="เช่น บริเวณหน้าปากซอย" class="w-full p-2.5 border rounded-xl text-xs bg-gray-50">
+          <label class="block text-xs font-bold text-gray-700 mb-1">3. ชื่อสถานที่ / รายละเอียด</label>
+          <input type="text" id="formDesc" placeholder="เช่น ร้านกาแฟคุณเจ๊ก / น้ำท่วมหน้าปากซอย" class="w-full p-2.5 border rounded-xl text-xs bg-gray-50">
         </div>
 
-        <div class="flex gap-2 pt-2">
-          <button type="button" onclick="closeModal()" class="w-1/3 bg-gray-100 text-gray-700 text-xs font-bold py-3 rounded-xl">ยกเลิก</button>
-          <button type="submit" class="w-2/3 bg-blue-600 active:bg-blue-700 text-white text-xs font-bold py-3 rounded-xl shadow-lg">บันทึกแจ้งเหตุ</button>
+        <div class="flex gap-2 pt-1">
+          <button type="button" onclick="closeModal()" class="w-1/3 bg-gray-100 text-gray-700 text-xs font-bold py-2.5 rounded-xl">ยกเลิก</button>
+          <button type="submit" class="w-2/3 bg-blue-600 active:bg-blue-700 text-white text-xs font-bold py-2.5 rounded-xl shadow-lg">บันทึกข้อมูล</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- โค้ดระบบแผนที่เดิม -->
+  <!-- โค้ดหลักแผนที่และตรรกะระบบ -->
   <script>
-    const map = L.map('map', { zoomControl: false }).setView([13.7563, 100.5018], 12);
+    // เปิดใช้งาน mouse wheel zoom ตามปกติ
+    const map = L.map('map', { zoomControl: false, scrollWheelZoom: true }).setView([13.7563, 100.5018], 13);
 
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
@@ -147,41 +185,120 @@
     let tempMarker = null;
     let uploadedImageData = "";
     let tempCoords = null;
+    let userLocationMarker = null;
+    let userRadiusCircle = null;
 
     const NOW = Date.now();
     const HOUR_MS = 3600 * 1000;
 
+    // ข้อมูลตัวอย่างเริ่มต้น
     let reportsData = [
       {
         id: 1,
         category: "flood",
         waterLevel: 30,
         passable: "เฉพาะรถใหญ่",
-        desc: "ขังรอการระบาย",
+        desc: "น้ำขังรอการระบาย",
         imgUrl: "https://images.unsplash.com/photo-1547683905-f686c993aae5?w=400&q=80",
         lat: 13.7563,
         lng: 100.5018,
         createdAt: NOW,
         expiresAt: NOW + (24 * HOUR_MS)
+      },
+      {
+        id: 2,
+        category: "shop_cafe",
+        waterLevel: null,
+        passable: "-",
+        desc: "คาเฟ่กาแฟสดนמלอร่อย",
+        imgUrl: "",
+        lat: 13.7600,
+        lng: 100.5100,
+        createdAt: NOW,
+        expiresAt: NOW + (7 * 24 * HOUR_MS)
       }
     ];
 
     let currentMarkersOnMap = [];
 
+    // กำหนดไอคอนและสีสันตามประเภทหมุด
+    function getCategoryConfig(category) {
+      switch(category) {
+        case 'flood': return { emoji: '🌊', title: 'น้ำท่วมขัง', color: 'bg-blue-600' };
+        case 'accident': return { emoji: '⚠️', title: 'อุบัติเหตุ', color: 'bg-yellow-600' };
+        case 'utility': return { emoji: '🔌', title: 'ไฟฟ้า/ประปา', color: 'bg-orange-600' };
+        case 'help': return { emoji: '🆘', title: 'ขอความช่วยเหลือ', color: 'bg-red-600' };
+        case 'shop_cafe': return { emoji: '☕', title: 'ร้านกาแฟ', color: 'bg-amber-700' };
+        case 'shop_grocery': return { emoji: '🛒', title: 'ร้านขายของชำ', color: 'bg-emerald-600' };
+        case 'shop_general': return { emoji: '🏪', title: 'ร้านค้าทั่วไป', color: 'bg-purple-600' };
+        default: return { emoji: '📍', title: 'จุดปักทั่วไป', color: 'bg-gray-600' };
+      }
+    }
+
+    // ฟังก์ชันค้นหาสถานที่ผ่าน Nominatim API และพาไปที่จุดนั้นแต่ยังไม่ปักหมุด
+    window.searchLocation = async function() {
+      const query = document.getElementById('searchLocationInput').value.trim();
+      if (!query) return;
+
+      try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+        const results = await response.json();
+        if (results && results.length > 0) {
+          const lat = parseFloat(results[0].lat);
+          const lon = parseFloat(results[0].lon);
+          map.flyTo([lat, lon], 16);
+          
+          // แสดงหมุดชั่วคราวชี้เป้าสถานที่ที่ค้นพบ
+          if (tempMarker) map.removeLayer(tempMarker);
+          tempMarker = L.marker([lat, lon]).addTo(map)
+            .bindPopup(`<b>ผลการค้นหา:</b> ${results[0].display_name}`).openPopup();
+        } else {
+          alert("ไม่พบสถานที่ที่คุณค้นหา กรุณาลองใหม่อีกครั้ง");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("เกิดข้อผิดพลาดในการเชื่อมต่อระบบค้นหา");
+      }
+    };
+
+    // ค้นหาตำแหน่งปัจจุบันและวาดวงกลมรัศมี
     window.locateUser = function() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(position => {
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
           map.flyTo([lat, lng], 16);
-          L.circle([lat, lng], { radius: 30, color: '#3B82F6', fillColor: '#3B82F6', fillOpacity: 0.4 }).addTo(map);
+
+          if (userLocationMarker) map.removeLayer(userLocationMarker);
+          userLocationMarker = L.circleMarker([lat, lng], { radius: 8, color: '#2563EB', fillColor: '#3B82F6', fillOpacity: 1 }).addTo(map);
+          
+          updateUserRadius();
         }, () => {
           alert("ไม่สามารถเข้าถึงพิกัด GPS ของคุณได้");
         });
       }
     };
 
-    // 🔒 ระบบตรวจสอบสิทธิ์ Admin ล็อกตายด้วยอีเมล sales108@gmail.com และรหัสผ่าน @@@###jek
+    window.updateUserRadius = function() {
+      const radiusMeters = parseInt(document.getElementById('radiusSelect').value);
+      if (!userLocationMarker) return;
+
+      const latLng = userLocationMarker.getLatLng();
+
+      if (userRadiusCircle) map.removeLayer(userRadiusCircle);
+
+      if (radiusMeters > 0) {
+        userRadiusCircle = L.circle(latLng, {
+          radius: radiusMeters,
+          color: '#3B82F6',
+          fillColor: '#3B82F6',
+          fillOpacity: 0.15,
+          weight: 1
+        }).addTo(map);
+      }
+    };
+
+    // ล็อกอิน Admin
     window.toggleAdminLogin = function() {
       const currentUser = window.currentFirebaseUser;
 
@@ -189,29 +306,45 @@
         isAdmin = false;
         alert("ออกจากโหมด Admin เรียบร้อย");
         document.getElementById('adminBtn').innerText = "🔒 แอดมิน";
+        if(document.getElementById('adminBtnMob')) document.getElementById('adminBtnMob').innerText = "🔒 แอดมิน";
         renderMarkers(reportsData);
       } else {
         if (!currentUser) {
           alert("กรุณาเข้าสู่ระบบด้วย Google ก่อนครับ");
           return;
         }
-
-        // เช็คอีเมลว่าตรงกับของคุณเจ๊กหรือไม่
         if (currentUser.email !== "sales108@gmail.com") {
           alert("บัญชีนี้ไม่มีสิทธิ์เข้าใช้งานโหมด Admin ครับ!");
           return;
         }
 
-        // หากอีเมลตรงกัน ให้กรอกรหัสผ่านยืนยันอีกชั้น
         const password = prompt("กรอกรหัสผ่าน Admin:");
         if (password === "@@@###jek") {
           isAdmin = true;
           alert("เข้าสู่โหมด Admin สำเร็จ!");
           document.getElementById('adminBtn').innerText = "🔓 โหมดแอดมิน";
+          if(document.getElementById('adminBtnMob')) document.getElementById('adminBtnMob').innerText = "🔓 โหมดแอดมิน";
           renderMarkers(reportsData);
         } else if (password !== null) {
           alert("รหัสผ่านไม่ถูกต้อง");
         }
+      }
+    };
+
+    window.handleCategoryChange = function() {
+      const cat = document.getElementById('formCategory').value;
+      const floodGroup = document.getElementById('floodSliderGroup');
+      const passableGroup = document.getElementById('passableGroup');
+
+      if (cat === 'flood') {
+        floodGroup.style.display = 'block';
+        passableGroup.style.display = 'block';
+      } else if (cat.startsWith('shop_')) {
+        floodGroup.style.display = 'none';
+        passableGroup.style.display = 'none';
+      } else {
+        floodGroup.style.display = 'none';
+        passableGroup.style.display = 'block';
       }
     };
 
@@ -257,13 +390,14 @@
       if (tempMarker) map.removeLayer(tempMarker);
 
       tempMarker = L.marker(center, { draggable: true }).addTo(map);
-      tempMarker.bindPopup("📍 **ลากหมุดนี้เพื่อย้ายตำแหน่งได้ครับ**").openPopup();
+      tempMarker.bindPopup("📍 **ลากหมุดนี้เพื่อเลือกตำแหน่งที่ต้องการปัก**").openPopup();
 
       tempMarker.on('dragend', function(e) {
         tempCoords = e.target.getLatLng();
       });
 
       document.getElementById('reportModal').classList.remove('hidden');
+      handleCategoryChange();
     };
 
     window.closeModal = function() {
@@ -274,30 +408,31 @@
     window.saveReport = function(e) {
       e.preventDefault();
       const category = document.getElementById('formCategory').value;
-      const waterLevel = document.getElementById('waterLevel').value;
-      const passable = document.getElementById('passableValue').value;
+      const waterLevel = category === 'flood' ? document.getElementById('waterLevel').value : null;
+      const passable = category.startsWith('shop_') ? '-' : document.getElementById('passableValue').value;
       const desc = document.getElementById('formDesc').value || "ไม่มีรายละเอียด";
 
       const newReport = {
         id: Date.now(),
         category: category,
-        waterLevel: category === 'flood' ? waterLevel : null,
+        waterLevel: waterLevel,
         passable: passable,
         desc: desc,
         imgUrl: uploadedImageData,
         lat: tempCoords.lat,
         lng: tempCoords.lng,
         createdAt: Date.now(),
-        expiresAt: Date.now() + (24 * HOUR_MS)
+        expiresAt: Date.now() + (7 * 24 * HOUR_MS)
       };
 
       reportsData.unshift(newReport);
       closeModal();
       removeImage();
       renderMarkers(reportsData);
-      alert("ปักแจ้งเหตุสำเร็จ!");
+      alert("ปักหมุดสำเร็จ!");
     };
 
+    // เรนเดอร์หมุดพร้อมไอคอนที่หลากหลายและปุ่มเปิด Google Maps ป้องกันข้อผิดพลาดการแสดงผล
     function renderMarkers(data) {
       currentMarkersOnMap.forEach(m => map.removeLayer(m));
       currentMarkersOnMap = [];
@@ -305,16 +440,28 @@
       const activeData = data.filter(item => item.expiresAt > Date.now());
 
       activeData.forEach(item => {
-        const marker = L.marker([item.lat, item.lng]).addTo(map);
+        const config = getCategoryConfig(item.category);
+        
+        // สร้าง Custom HTML Icon สำหรับหมุดแต่ละประเภท
+        const customHtmlIcon = L.divIcon({
+          className: 'custom-pin-icon',
+          html: `<div class="${config.color} text-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white text-sm">${config.emoji}</div>`,
+          iconSize: [32, 32],
+          iconAnchor: [16, 16]
+        });
 
-        let deleteBtnHTML = isAdmin ? `<button onclick="deleteReport(${item.id})" class="mt-2 w-full bg-red-100 text-red-600 font-bold py-1 rounded text-xs cursor-pointer">🗑️ ลบหมุดนี้ (Admin)</button>` : '';
+        const marker = L.marker([item.lat, item.lng], { icon: customHtmlIcon }).addTo(map);
+
+        const deleteBtnHTML = isAdmin ? `<button onclick="deleteReport(${item.id})" class="mt-2 w-full bg-red-100 text-red-600 font-bold py-1 rounded text-xs cursor-pointer">🗑️ ลบหมุดนี้ (Admin)</button>` : '';
+        const googleMapUrl = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`;
 
         const popupHTML = `
-          <div class="w-48 p-1">
+          <div class="w-52 p-1">
             ${item.imgUrl ? `<img src="${item.imgUrl}" class="w-full h-24 object-cover rounded-lg mb-1.5">` : ''}
-            <h4 class="font-bold text-xs text-blue-700">${item.category === 'flood' ? `🌊 น้ำท่วมขัง ${item.waterLevel} ซม.` : '🚨 แจ้งเตือนเหตุ'}</h4>
-            <p class="text-[10px] font-bold text-gray-800 mt-0.5">🚦 ${item.passable}</p>
-            <p class="text-[10px] text-gray-500 mt-0.5">${item.desc}</p>
+            <h4 class="font-bold text-xs text-blue-700">${config.emoji} ${config.title} ${item.waterLevel ? `(${item.waterLevel} ซม.)` : ''}</h4>
+            ${item.passable !== '-' ? `<p class="text-[10px] font-bold text-gray-800 mt-0.5">🚦 ${item.passable}</p>` : ''}
+            <p class="text-[10px] text-gray-600 mt-0.5">${item.desc}</p>
+            <a href="${googleMapUrl}" target="_blank" class="mt-2 block w-full bg-blue-600 text-white text-center font-bold py-1.5 rounded-lg text-[10px] shadow">🗺️ เปิดด้วย Google Maps</a>
             ${deleteBtnHTML}
           </div>
         `;
@@ -369,33 +516,34 @@
 
     const loginBtn = document.getElementById('google-login-btn');
     const logoutBtn = document.getElementById('google-logout-btn');
+    const loginBtnMob = document.getElementById('google-login-btn-mob');
+    const logoutBtnMob = document.getElementById('google-logout-btn-mob');
     const authStatusText = document.getElementById('auth-status-text');
 
     window.currentFirebaseUser = null;
 
-    loginBtn.addEventListener('click', () => {
-        signInWithPopup(auth, provider)
-            .then((result) => {
-                console.log("Login Success:", result.user);
-            })
-            .catch((error) => {
-                console.error("Login Error:", error.message);
-                alert("เข้าสู่ระบบไม่สำเร็จ: " + error.message);
-            });
-    });
+    const handleLogin = () => {
+        signInWithPopup(auth, provider).catch((error) => {
+            alert("เข้าสู่ระบบไม่สำเร็จ: " + error.message);
+        });
+    };
 
-    logoutBtn.addEventListener('click', () => {
+    const handleLogout = () => {
         signOut(auth).then(() => {
             window.currentFirebaseUser = null;
             if (typeof isAdmin !== 'undefined' && isAdmin) {
                 isAdmin = false;
                 document.getElementById('adminBtn').innerText = "🔒 แอดมิน";
+                if(document.getElementById('adminBtnMob')) document.getElementById('adminBtnMob').innerText = "🔒 แอดมิน";
                 renderMarkers(reportsData);
             }
-        }).catch((error) => {
-            console.error("Sign out error:", error);
         });
-    });
+    };
+
+    loginBtn.addEventListener('click', handleLogin);
+    if(loginBtnMob) loginBtnMob.addEventListener('click', handleLogin);
+    logoutBtn.addEventListener('click', handleLogout);
+    if(logoutBtnMob) logoutBtnMob.addEventListener('click', handleLogout);
 
     onAuthStateChanged(auth, (user) => {
         window.currentFirebaseUser = user;
@@ -403,14 +551,19 @@
             authStatusText.innerText = `ยินดีต้อนรับ, ${user.displayName}`;
             loginBtn.style.display = 'none';
             logoutBtn.style.display = 'inline-block';
+            if(loginBtnMob) loginBtnMob.style.display = 'none';
+            if(logoutBtnMob) logoutBtnMob.style.display = 'inline-block';
         } else {
             authStatusText.innerText = "กรุณาเข้าสู่ระบบด้วย Google";
             loginBtn.style.display = 'inline-block';
             logoutBtn.style.display = 'none';
+            if(loginBtnMob) loginBtnMob.style.display = 'inline-block';
+            if(logoutBtnMob) logoutBtnMob.style.display = 'none';
             
             if (window.isAdmin) {
                 isAdmin = false;
                 document.getElementById('adminBtn').innerText = "🔒 แอดมิน";
+                if(document.getElementById('adminBtnMob')) document.getElementById('adminBtnMob').innerText = "🔒 แอดมิน";
                 renderMarkers(reportsData);
             }
         }
