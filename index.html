@@ -108,7 +108,7 @@
   <div class="pin-fixed">📍</div>
   <div class="pin-shadow"></div>
   <div class="fixed left-1/2 -translate-x-1/2 top-[55%] z-[1500] bg-white/95 backdrop-blur px-4 py-2 rounded-full shadow-lg text-xs font-bold text-gray-700">
-    เลื่อนแผนที่จนหมุดตรงจุดที่ต้องการ
+    เลื่อนแผนที่หรือหมุนเมาส์ซูมเพื่อหาจุดที่ต้องการ
   </div>
   <button onclick="confirmPinLocation()"
     class="fixed bottom-7 left-1/2 -translate-x-1/2 z-[1600] bg-blue-600 text-white px-7 py-3.5 rounded-full shadow-2xl font-extrabold text-sm active:scale-95">
@@ -120,7 +120,7 @@
   </button>
 </div>
 
-<!-- Header & Search Box (รวมอยู่ในบาร์ด้านบนตามที่ขอ) -->
+<!-- Header & Search Box (แถบบนสุด) -->
 <div class="ui-layer fixed top-3 left-3 right-3 flex flex-col gap-2">
   <div class="flex justify-between items-center bg-white/95 backdrop-blur-md px-3 py-2.5 rounded-2xl shadow-lg border border-gray-100 gap-2">
     <!-- โลโก้และชื่อแอป -->
@@ -161,10 +161,10 @@
 
 <!-- GPS / Around Me -->
 <div class="ui-layer fixed top-24 right-4 flex flex-col gap-2">
-  <button type="button" onclick="locateUser()" class="bg-white p-3 rounded-full shadow-xl border border-gray-200 text-gray-700 active:scale-95">🎯</button>
-  <button type="button" onclick="showNearby()" class="bg-white px-3 py-2.5 rounded-2xl shadow-xl border border-gray-200 text-gray-700 active:scale-95 text-[10px] font-extrabold">📍 ฉันอยู่ตรงนี้</button>
+  <button type="button" onclick="locateUser()" class="bg-white p-3 rounded-full shadow-xl border border-gray-200 text-gray-700 active:scale-95" title="ตำแหน่งของฉัน">🎯</button>
+  <button type="button" onclick="showNearby()" class="bg-white px-3 py-2.5 rounded-2xl shadow-xl border border-gray-200 text-gray-700 active:scale-95 text-[10px] font-extrabold">📍 ฉันอยู่ตรงนี้ (2 กม.)</button>
 </div>
-<div id="nearbyBar" class="ui-layer hidden fixed top-[135px] left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur rounded-full px-4 py-2 shadow-xl border text-[10px] font-extrabold text-purple-700">📍 กำลังดูสิ่งที่อยู่รอบตัวฉัน <button onclick="clearNearbyMode()" class="ml-2 text-gray-400">✕</button></div>
+<div id="nearbyBar" class="ui-layer hidden fixed top-[135px] left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur rounded-full px-4 py-2 shadow-xl border text-[10px] font-extrabold text-purple-700">📍 กำลังแสดงหมุดรัศมี 2 กม. รอบตัวฉัน <button onclick="clearNearbyMode()" class="ml-2 text-gray-400">✕</button></div>
 
 <!-- Filter -->
 <div class="ui-layer fixed bottom-6 left-4 max-w-[190px]">
@@ -246,14 +246,37 @@
     <div class="flex justify-between">
       <div>
         <h3 class="font-extrabold text-lg">⚙️ จัดการปัก-ปัน (Admin)</h3>
-        <p class="text-[10px] text-gray-500">เพิ่มหมวดหมู่ร้านค้าหรือบริการได้ทันที</p>
+        <p class="text-[10px] text-gray-500">เพิ่มหมวดหมู่และเลือกไอคอนหลากหลาย</p>
       </div>
       <button onclick="closeAdminPanel()" class="text-2xl text-gray-400">&times;</button>
     </div>
 
     <div class="mt-4 space-y-3">
-      <input id="adminCatName" class="w-full p-3 border rounded-xl text-sm" placeholder="ชื่อหมวด เช่น ร้านขายของชำ">
-      <input id="adminCatIcon" class="w-full p-3 border rounded-xl text-sm" placeholder="ไอคอน เช่น 🛒">
+      <input id="adminCatName" class="w-full p-3 border rounded-xl text-sm" placeholder="ชื่อหมวด เช่น ร้านยา, จุดชมวิว">
+      
+      <div>
+        <label class="text-xs font-bold text-gray-600 mb-1 block">เลือกไอคอนด่วน หรือพิมพ์ใส่เอง</label>
+        <div class="grid grid-cols-8 gap-1 mb-2 bg-gray-50 p-2 rounded-xl border text-center">
+          <button type="button" onclick="document.getElementById('adminCatIcon').value='☕'" class="p-1 hover:bg-purple-100 rounded">☕</button>
+          <button type="button" onclick="document.getElementById('adminCatIcon').value='🍜'" class="p-1 hover:bg-purple-100 rounded">🍜</button>
+          <button type="button" onclick="document.getElementById('adminCatIcon').value='🛒'" class="p-1 hover:bg-purple-100 rounded">🛒</button>
+          <button type="button" onclick="document.getElementById('adminCatIcon').value='💊'" class="p-1 hover:bg-purple-100 rounded">💊</button>
+          <button type="button" onclick="document.getElementById('adminCatIcon').value='⚡'" class="p-1 hover:bg-purple-100 rounded">⚡</button>
+          <button type="button" onclick="document.getElementById('adminCatIcon').value='🌊'" class="p-1 hover:bg-purple-100 rounded">🌊</button>
+          <button type="button" onclick="document.getElementById('adminCatIcon').value='⚠️️'" class="p-1 hover:bg-purple-100 rounded">⚠️</button>
+          <button type="button" onclick="document.getElementById('adminCatIcon').value='🏨'" class="p-1 hover:bg-purple-100 rounded">🏨</button>
+          <button type="button" onclick="document.getElementById('adminCatIcon').value='⛽'" class="p-1 hover:bg-purple-100 rounded">⛽</button>
+          <button type="button" onclick="document.getElementById('adminCatIcon').value='🏧'" class="p-1 hover:bg-purple-100 rounded">🏧</button>
+          <button type="button" onclick="document.getElementById('adminCatIcon').value='🏫'" class="p-1 hover:bg-purple-100 rounded">🏫</button>
+          <button type="button" onclick="document.getElementById('adminCatIcon').value='🏥'" class="p-1 hover:bg-purple-100 rounded">🏥</button>
+          <button type="button" onclick="document.getElementById('adminCatIcon').value='🌳'" class="p-1 hover:bg-purple-100 rounded">🌳</button>
+          <button type="button" onclick="document.getElementById('adminCatIcon').value='🔥'" class="p-1 hover:bg-purple-100 rounded">🔥</button>
+          <button type="button" onclick="document.getElementById('adminCatIcon').value='📷'" class="p-1 hover:bg-purple-100 rounded">📷</button>
+          <button type="button" onclick="document.getElementById('adminCatIcon').value='🆘'" class="p-1 hover:bg-purple-100 rounded">🆘</button>
+        </div>
+        <input id="adminCatIcon" class="w-full p-3 border rounded-xl text-sm" placeholder="ไอคอน เช่น 💊">
+      </div>
+
       <div>
         <label class="text-xs font-bold text-gray-600">ชนิดข้อมูล</label>
         <select id="adminCatType" class="w-full p-3 border rounded-xl text-sm mt-1">
@@ -304,6 +327,7 @@ const defaultCategories = [
   {id:'coffee', name:'ร้านกาแฟ', icon:'☕', type:'store'},
   {id:'restaurant', name:'ร้านอาหาร', icon:'🍜', type:'store'},
   {id:'grocery', name:'ร้านขายของชำ', icon:'🛒', type:'store'},
+  {id:'pharmacy', name:'ร้านขายยา', icon:'💊', type:'store'},
   {id:'ev', name:'จุดชาร์จรถไฟฟ้า', icon:'⚡', type:'place'},
   {id:'flood', name:'น้ำท่วม / รอการระบาย', icon:'🌊', type:'place'},
   {id:'accident', name:'อุบัติเหตุ / สิ่งกีดขวาง', icon:'⚠️', type:'place'},
@@ -378,16 +402,15 @@ function startPinning() {
   document.getElementById('pinGuide').classList.remove('hidden');
   document.body.classList.add('pin-mode');
   map.dragging.enable();
-  map.scrollWheelZoom.disable();
-  map.doubleClickZoom.disable();
+  // อนุญาตให้ใช้เมาส์ซูมอิน/ซูมเอาท์ได้ตามปกติขณะเลือกหมุด
+  map.scrollWheelZoom.enable();
+  map.doubleClickZoom.enable();
 }
 
 function cancelPinLocation() {
   isPinMode = false;
   document.getElementById('pinGuide').classList.add('hidden');
   document.body.classList.remove('pin-mode');
-  map.scrollWheelZoom.enable();
-  map.doubleClickZoom.enable();
 }
 
 function confirmPinLocation() {
@@ -415,7 +438,7 @@ function buildReportFields() {
   const c = selectedCategory;
   let html = '';
 
-  if (c.type === 'store' || c.id === 'coffee' || c.id === 'restaurant' || c.id === 'grocery') {
+  if (c.type === 'store' || c.id === 'coffee' || c.id === 'restaurant' || c.id === 'grocery' || c.id === 'pharmacy') {
     html += choiceField('ช่วงราคา / เรทราคา', ['฿ ต่ำกว่า 100','฿฿ 100–300','฿฿฿ มากกว่า 300']);
     html += choiceField('สถานะร้าน', ['เปิดให้บริการ','ปิดบริการชั่วคราว','ไม่ทราบ']);
   } else if (c.id === 'ev') {
@@ -554,7 +577,6 @@ function saveReport() {
   alert(selectedCategory.type === 'photo_quest' ? '📷 เปิดเควสขอรูปแล้ว' : '📍 ปัก-ปันสำเร็จ');
 }
 
-// ปรับขนาดไอคอนให้เล็กลงอีกนิดตามระดับ Zoom และแก้ไขบัณฆ์การแสดงผลป๊อปอัปในครั้งแรก
 function renderMarkers(data) {
   currentMarkersOnMap.forEach(m => map.removeLayer(m));
   currentMarkersOnMap = [];
@@ -563,7 +585,6 @@ function renderMarkers(data) {
   const active = data.filter(x => x.expiresAt > now);
   const currentZoom = map.getZoom();
   
-  // ลดขนาดตัวคูณลงเพื่อให้ไอคอนเล็กลงกำลังดี ไม่ทับกันเวลาซูมออก
   let iconSizePx = Math.max(16, Math.min(28, currentZoom * 1.8));
   let anchorOffset = iconSizePx / 2;
 
@@ -589,23 +610,31 @@ function renderMarkers(data) {
       `<img src="${item.imgUrl}" class="w-full h-28 object-cover rounded-xl mb-2 thumb-img" onclick="openImageViewer('${item.imgUrl}')">` : '';
 
     const choiceHtml = item.choices?.length ?
-      `<p class="text-[10px] text-gray-600">• ${item.choices.map(escapeHtml).join('<br>• ')}</p>` : '';
+      `<p class="text-[10px] text-gray-600 mb-2">• ${item.choices.map(escapeHtml).join('<br>• ')}</p>` : '';
 
     const helpTime = c.type === 'help' ?
       `<p class="text-[9px] text-red-600 font-bold mt-1">🕑 ความช่วยเหลือชั่วคราว</p>` : '';
 
+    // ปุ่มเปิดนำทางด้วย Google Maps
+    const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`;
+    const navBtnHtml = `
+      <a href="${gmapsUrl}" target="_blank" class="block text-center mt-2 w-full bg-green-600 hover:bg-green-700 text-white py-1.5 rounded-lg text-[10px] font-bold shadow">
+        🗺️ นำทางด้วย Google Maps
+      </a>
+    `;
+
     const popupContent = `
       <div class="w-56 p-1">
         <h4 class="font-extrabold text-sm text-purple-700">${c.icon} ${escapeHtml(c.name)}</h4>${imageHtml}
-        ${choiceHtml}${item.waterLevel ? `<p class="text-[10px] font-bold">🌊 ระดับน้ำ ${item.waterLevel} ซม.</p>`:''}
-        ${helpTime}${questHtml}
-        <p class="text-[9px] text-gray-400 mt-2">${timeAgo(item.createdAt)}</p>${isAdminUser() ? `<button onclick="deleteReport(${item.id})" class="mt-2 w-full bg-red-100 text-red-600 py-1.5 rounded-lg text-[10px] font-bold">🗑️ ลบหมุด</button>`:''}
+        ${choiceHtml}${item.waterLevel ? `<p class="text-[10px] font-bold mb-1">🌊 ระดับน้ำ ${item.waterLevel} ซม.</p>`:''}
+        ${helpTime}
+        ${questHtml}${navBtnHtml}
+        <p class="text-[9px] text-gray-400 mt-2">${timeAgo(item.createdAt)}</p>${isAdminUser() ? `<button onclick="deleteReport(${item.id})" class="mt-2 w-full bg-red-100 text-red-600 py-1.5 rounded-lg text-[10px] font-bold">🗑️️ ลบหมุด</button>`:''}
       </div>
     `;
 
     marker.bindPopup(popupContent);
 
-    // แก้ไขปัญหาการแสดงผลผิดพลาดในครั้งแรกเมื่อคลิกเปิดป๊อปอัป
     marker.on('click', () => {
       setTimeout(() => {
         map.invalidateSize();
@@ -818,10 +847,11 @@ function showNearby() {
   getCurrentPositionSafe(pos => {
     userLatLng = [pos.coords.latitude, pos.coords.longitude];
     nearbyMode = true;
-    map.flyTo(userLatLng, 16);
+    map.flyTo(userLatLng, 15);
     if (nearbyCircle) map.removeLayer(nearbyCircle);
+    // ขยายรัศมีเป็น 2,000 เมตร (2 กิโลเมตร) ตามความต้องการ
     nearbyCircle = L.circle(userLatLng, {
-      radius:500, color:'#8b5cf6', fillColor:'#a78bfa', fillOpacity:.12, weight:2
+      radius:2000, color:'#8b5cf6', fillColor:'#a78bfa', fillOpacity:.12, weight:2
     }).addTo(map);
     document.getElementById('nearbyBar').classList.remove('hidden');
     document.getElementById('categoryFilter').value='all';
@@ -832,7 +862,7 @@ function showNearby() {
 function renderNearby() {
   if (!userLatLng) return;
   renderMarkers(reportsData.filter(x =>
-    x.expiresAt > Date.now() && map.distance(userLatLng,[x.lat,x.lng]) <= 500
+    x.expiresAt > Date.now() && map.distance(userLatLng,[x.lat,x.lng]) <= 2000
   ));
 }
 
