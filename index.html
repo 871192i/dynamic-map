@@ -17,6 +17,22 @@
     #map { position: absolute; top: 0; bottom: 0; width: 100%; height: 100%; z-index: 1; }
     .ui-layer { z-index: 1000; }
     .modal-overlay { z-index: 2000; }
+
+    /* สไตล์ไอคอนเป้าเล็งปักหมุดตรงกลางจอถาวร */
+    .center-pin-indicator {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -100%);
+      font-size: 38px;
+      z-index: 999;
+      pointer-events: none;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+      transition: transform 0.15s ease;
+    }
+    .center-pin-indicator.bounce {
+      transform: translate(-50%, -120%);
+    }
   </style>
 </head>
 <body class="bg-gray-100 flex flex-col h-full select-none font-sans">
@@ -24,7 +40,10 @@
   <!-- แผนที่เต็มจอ -->
   <div id="map"></div>
 
-  <!-- แถบ Header ลอยด้านบน (รวมโลโก้, ค้นหาสถานที่, ปุ่ม Admin, ล็อกอิน) -->
+  <!-- หมุดเป้าเล็งตรงกลางหน้าจอสำหรับเลื่อนหาพิกัด -->
+  <div id="centerPin" class="center-pin-indicator">📍</div>
+
+  <!-- แถบ Header ลอยด้านบน -->
   <div class="ui-layer fixed top-3 left-3 right-3 flex flex-col sm:flex-row justify-between items-center bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-lg border border-gray-100 gap-2">
     <div class="flex items-center justify-between w-full sm:w-auto gap-2">
       <div class="flex items-center gap-2">
@@ -34,7 +53,6 @@
           <p class="text-[9px] text-blue-600 font-semibold" id="auth-status-text">กรุณาเข้าสู่ระบบด้วย Google</p>
         </div>
       </div>
-      <!-- ปุ่มระบบบนมือถือจัดกลุ่มขวา -->
       <div class="flex items-center gap-1.5 sm:hidden">
         <button id="google-login-btn-mob" class="text-[10px] bg-blue-600 text-white px-2.5 py-1.5 rounded-xl font-bold">เข้าสู่ระบบ</button>
         <button id="google-logout-btn-mob" style="display:none;" class="text-[10px] bg-gray-200 px-2 py-1.5 rounded-xl font-bold text-gray-700">ออก</button>
@@ -42,7 +60,7 @@
       </div>
     </div>
 
-    <!-- ช่องค้นหาสถานที่บนแถบเดียวกัน -->
+    <!-- ช่องค้นหาสถานที่ -->
     <div class="flex items-center w-full sm:w-72 gap-1 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1 shadow-inner">
       <span class="text-sm">🔍</span>
       <input type="text" id="searchLocationInput" placeholder="ค้นหาสถานที่ เช่น เซ็นทรัล..." class="w-full bg-transparent text-xs outline-none text-gray-700 font-medium" onkeydown="if(event.key==='Enter') searchLocation()">
@@ -57,7 +75,7 @@
     </div>
   </div>
 
-  <!-- ปุ่มควบคุมด้านขวา (GPS, ซูมอิน/เอาท์ขนาดเล็ก) -->
+  <!-- ปุ่มควบคุมด้านขวา (GPS, ซูมอิน/เอาท์) -->
   <div class="ui-layer fixed top-24 right-4 flex flex-col gap-2">
     <button onclick="locateUser()" class="bg-white p-2.5 rounded-full shadow-xl border border-gray-200 text-gray-700 active:scale-95 transition text-sm" title="ตำแหน่งของฉัน">
       🎯
@@ -70,7 +88,7 @@
     </button>
   </div>
 
-  <!-- แผงควบคุมตั้งค่ารัศมี "ฉันอยู่ตรงนี้" (ลอยกลางขวาเหนือปุ่มปักหมุด) -->
+  <!-- ตั้งค่ารัศมีรอบตัว -->
   <div class="ui-layer fixed bottom-20 right-4 bg-white/95 backdrop-blur px-3 py-2 rounded-2xl shadow-xl border border-gray-200 flex items-center gap-2">
     <span class="text-xs font-bold text-gray-700">🎯 รัศมีรอบตัว:</span>
     <select id="radiusSelect" onchange="updateUserRadius()" class="text-xs bg-gray-50 border rounded-lg p-1 font-bold text-blue-600 outline-none">
@@ -82,9 +100,9 @@
     </select>
   </div>
 
-  <!-- ปุ่มใหญ่ปักแจ้งเหตุ (ลอยขวาล่าง) -->
-  <button onclick="startPinning()" class="ui-layer fixed bottom-6 right-4 bg-red-600 active:bg-red-700 text-white font-extrabold py-3 px-4 rounded-full shadow-2xl flex items-center gap-2 border-2 border-white transition transform active:scale-95 text-xs">
-    <span class="text-lg">📍</span> <span>ปักจุด/ร้านค้า</span>
+  <!-- ปุ่มยืนยันปักหมุด ณ จุดกึ่งกลางจอ (ลอยขวาล่าง) -->
+  <button onclick="confirmPinPosition()" class="ui-layer fixed bottom-6 right-4 bg-red-600 active:bg-red-700 text-white font-extrabold py-3.5 px-5 rounded-full shadow-2xl flex items-center gap-2 border-2 border-white transition transform active:scale-95 text-xs">
+    <span class="text-lg">📍</span> <span>ปักหมุด ณ จุดนี้</span>
   </button>
 
   <!-- ตัวกรองหมวดหมู่แบบย่อ (ลอยล่างซ้าย) -->
@@ -101,17 +119,17 @@
     </select>
   </div>
 
-  <!-- Modal ฟอร์มปักหมุดและเลือกไอคอนหลากหลาย -->
+  <!-- Modal ฟอร์มเลือกหมวดหมู่และรายละเอียด หลังจากกดปักหมุด -->
   <div id="reportModal" class="modal-overlay fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
     <div class="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 shadow-2xl overflow-y-auto max-h-[85vh] transition-all">
       <div class="flex justify-between items-center border-b pb-3 mb-3">
-        <h3 class="font-bold text-base text-gray-800 flex items-center gap-2">📍 กำหนดรายละเอียดจุดปัก</h3>
+        <h3 class="font-bold text-base text-gray-800 flex items-center gap-2">📝 เลือกหมวดหมู่และรายละเอียด</h3>
         <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold px-2">&times;</button>
       </div>
 
       <form id="reportForm" onsubmit="saveReport(event)" class="space-y-3">
         <div>
-          <label class="block text-xs font-bold text-gray-700 mb-1">1. เลือกประเภทและไอคอนหมุด</label>
+          <label class="block text-xs font-bold text-gray-700 mb-1">เลือกประเภทหมุด</label>
           <select id="formCategory" class="w-full p-2.5 border rounded-xl text-xs bg-gray-50 font-bold text-gray-800" onchange="handleCategoryChange()">
             <optgroup label="🚨 หมวดเหตุการณ์ / แจ้งเตือนภัย">
               <option value="flood">🌊 น้ำท่วม / รอการระบาย</option>
@@ -147,7 +165,7 @@
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-gray-700 mb-1">2. ถ่ายภาพ / เลือกรูป</label>
+          <label class="block text-xs font-bold text-gray-700 mb-1">ถ่ายภาพ / เลือกรูป</label>
           <input type="file" id="imageInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageUpload(event)">
           <button type="button" onclick="document.getElementById('imageInput').click()" class="w-full border-2 border-dashed border-gray-300 p-2.5 rounded-xl text-xs text-gray-600 flex items-center justify-center gap-2 bg-gray-50 active:bg-gray-100 transition">
             <span class="text-base">📷</span> <span id="uploadBtnText" class="font-bold">กดเพื่อถ่ายรูป หรือ เลือกรูปภาพ</span>
@@ -159,13 +177,13 @@
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-gray-700 mb-1">3. ชื่อสถานที่ / รายละเอียด</label>
+          <label class="block text-xs font-bold text-gray-700 mb-1">ชื่อสถานที่ / รายละเอียด</label>
           <input type="text" id="formDesc" placeholder="เช่น ร้านกาแฟคุณเจ๊ก / น้ำท่วมหน้าปากซอย" class="w-full p-2.5 border rounded-xl text-xs bg-gray-50">
         </div>
 
         <div class="flex gap-2 pt-1">
           <button type="button" onclick="closeModal()" class="w-1/3 bg-gray-100 text-gray-700 text-xs font-bold py-2.5 rounded-xl">ยกเลิก</button>
-          <button type="submit" class="w-2/3 bg-blue-600 active:bg-blue-700 text-white text-xs font-bold py-2.5 rounded-xl shadow-lg">บันทึกข้อมูล</button>
+          <button type="submit" class="w-2/3 bg-blue-600 active:bg-blue-700 text-white text-xs font-bold py-2.5 rounded-xl shadow-lg">ยืนยันบันทึก</button>
         </div>
       </form>
     </div>
@@ -173,7 +191,6 @@
 
   <!-- โค้ดหลักแผนที่และตรรกะระบบ -->
   <script>
-    // เปิดใช้งาน mouse wheel zoom ตามปกติ
     const map = L.map('map', { zoomControl: false, scrollWheelZoom: true }).setView([13.7563, 100.5018], 13);
 
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -182,16 +199,14 @@
     }).addTo(map);
 
     let isAdmin = false;
-    let tempMarker = null;
     let uploadedImageData = "";
-    let tempCoords = null;
+    let confirmedCoords = null;
     let userLocationMarker = null;
     let userRadiusCircle = null;
 
     const NOW = Date.now();
     const HOUR_MS = 3600 * 1000;
 
-    // ข้อมูลตัวอย่างเริ่มต้น
     let reportsData = [
       {
         id: 1,
@@ -210,7 +225,7 @@
         category: "shop_cafe",
         waterLevel: null,
         passable: "-",
-        desc: "คาเฟ่กาแฟสดนמלอร่อย",
+        desc: "คาเฟ่กาแฟสดอร่อย",
         imgUrl: "",
         lat: 13.7600,
         lng: 100.5100,
@@ -221,7 +236,6 @@
 
     let currentMarkersOnMap = [];
 
-    // กำหนดไอคอนและสีสันตามประเภทหมุด
     function getCategoryConfig(category) {
       switch(category) {
         case 'flood': return { emoji: '🌊', title: 'น้ำท่วมขัง', color: 'bg-blue-600' };
@@ -235,7 +249,6 @@
       }
     }
 
-    // ฟังก์ชันค้นหาสถานที่ผ่าน Nominatim API และพาไปที่จุดนั้นแต่ยังไม่ปักหมุด
     window.searchLocation = async function() {
       const query = document.getElementById('searchLocationInput').value.trim();
       if (!query) return;
@@ -247,11 +260,6 @@
           const lat = parseFloat(results[0].lat);
           const lon = parseFloat(results[0].lon);
           map.flyTo([lat, lon], 16);
-          
-          // แสดงหมุดชั่วคราวชี้เป้าสถานที่ที่ค้นพบ
-          if (tempMarker) map.removeLayer(tempMarker);
-          tempMarker = L.marker([lat, lon]).addTo(map)
-            .bindPopup(`<b>ผลการค้นหา:</b> ${results[0].display_name}`).openPopup();
         } else {
           alert("ไม่พบสถานที่ที่คุณค้นหา กรุณาลองใหม่อีกครั้ง");
         }
@@ -261,7 +269,6 @@
       }
     };
 
-    // ค้นหาตำแหน่งปัจจุบันและวาดวงกลมรัศมี
     window.locateUser = function() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(position => {
@@ -282,11 +289,8 @@
     window.updateUserRadius = function() {
       const radiusMeters = parseInt(document.getElementById('radiusSelect').value);
       if (!userLocationMarker) return;
-
       const latLng = userLocationMarker.getLatLng();
-
       if (userRadiusCircle) map.removeLayer(userRadiusCircle);
-
       if (radiusMeters > 0) {
         userRadiusCircle = L.circle(latLng, {
           radius: radiusMeters,
@@ -298,10 +302,8 @@
       }
     };
 
-    // ล็อกอิน Admin
     window.toggleAdminLogin = function() {
       const currentUser = window.currentFirebaseUser;
-
       if (isAdmin) {
         isAdmin = false;
         alert("ออกจากโหมด Admin เรียบร้อย");
@@ -329,6 +331,23 @@
           alert("รหัสผ่านไม่ถูกต้อง");
         }
       }
+    };
+
+    // เมื่อผู้ใช้กดปุ่ม "ปักหมุด ณ จุดนี้" จะบันทึกพิกัดกึ่งกลางจอ แล้วเปิด Modal เลือกหมวดหมู่
+    window.confirmPinPosition = function() {
+      confirmedCoords = map.getCenter();
+      
+      // ลูกเล่นอนิเมชันปุ่มขยับเล็กน้อย
+      const pinEl = document.getElementById('centerPin');
+      pinEl.classList.add('bounce');
+      setTimeout(() => pinEl.classList.remove('bounce'), 200);
+
+      document.getElementById('reportModal').classList.remove('hidden');
+      handleCategoryChange();
+    };
+
+    window.closeModal = function() {
+      document.getElementById('reportModal').classList.add('hidden');
     };
 
     window.handleCategoryChange = function() {
@@ -383,28 +402,6 @@
       document.getElementById('uploadBtnText').innerText = "กดเพื่อถ่ายรูป หรือ เลือกรูปภาพ";
     };
 
-    window.startPinning = function() {
-      const center = map.getCenter();
-      tempCoords = center;
-
-      if (tempMarker) map.removeLayer(tempMarker);
-
-      tempMarker = L.marker(center, { draggable: true }).addTo(map);
-      tempMarker.bindPopup("📍 **ลากหมุดนี้เพื่อเลือกตำแหน่งที่ต้องการปัก**").openPopup();
-
-      tempMarker.on('dragend', function(e) {
-        tempCoords = e.target.getLatLng();
-      });
-
-      document.getElementById('reportModal').classList.remove('hidden');
-      handleCategoryChange();
-    };
-
-    window.closeModal = function() {
-      document.getElementById('reportModal').classList.add('hidden');
-      if (tempMarker) map.removeLayer(tempMarker);
-    };
-
     window.saveReport = function(e) {
       e.preventDefault();
       const category = document.getElementById('formCategory').value;
@@ -419,8 +416,8 @@
         passable: passable,
         desc: desc,
         imgUrl: uploadedImageData,
-        lat: tempCoords.lat,
-        lng: tempCoords.lng,
+        lat: confirmedCoords.lat,
+        lng: confirmedCoords.lng,
         createdAt: Date.now(),
         expiresAt: Date.now() + (7 * 24 * HOUR_MS)
       };
@@ -432,7 +429,6 @@
       alert("ปักหมุดสำเร็จ!");
     };
 
-    // เรนเดอร์หมุดพร้อมไอคอนที่หลากหลายและปุ่มเปิด Google Maps ป้องกันข้อผิดพลาดการแสดงผล
     function renderMarkers(data) {
       currentMarkersOnMap.forEach(m => map.removeLayer(m));
       currentMarkersOnMap = [];
@@ -442,7 +438,6 @@
       activeData.forEach(item => {
         const config = getCategoryConfig(item.category);
         
-        // สร้าง Custom HTML Icon สำหรับหมุดแต่ละประเภท
         const customHtmlIcon = L.divIcon({
           className: 'custom-pin-icon',
           html: `<div class="${config.color} text-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white text-sm">${config.emoji}</div>`,
