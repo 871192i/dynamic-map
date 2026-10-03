@@ -26,7 +26,7 @@
   <!-- แผนที่เต็มจอ -->
   <div id="map"></div>
 
-  <!-- แถบ Header ลอยด้านบน (เพิ่มปุ่มล็อกอิน Firebase) -->
+  <!-- แถบ Header ลอยด้านบน (รวมระบบ Google Auth และปุ่ม Admin) -->
   <div class="ui-layer fixed top-3 left-3 right-3 flex justify-between items-center bg-white/90 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-lg border border-gray-100">
     <div class="flex items-center gap-2">
       <span class="text-2xl">🚨</span>
@@ -55,7 +55,7 @@
     🎯
   </button>
 
-  <!-- ปุ่มใหญ่ปักแจ้งเหตุ (ลอยอยู่ขวาล่าง ใช้นิ้วโป้งกดง่ายมาก) -->
+  <!-- ปุ่มใหญ่ปักแจ้งเหตุ (ลอยอยู่ขวาล่าง) -->
   <button onclick="startPinning()" class="ui-layer fixed bottom-6 right-4 bg-red-600 active:bg-red-700 text-white font-extrabold py-3.5 px-5 rounded-full shadow-2xl flex items-center gap-2 border-2 border-white transition transform active:scale-95">
     <span class="text-xl">📍</span> <span class="text-sm">ปักแจ้งเหตุตรงนี้</span>
   </button>
@@ -80,7 +80,6 @@
       </div>
 
       <form id="reportForm" onsubmit="saveReport(event)" class="space-y-4">
-        <!-- 1. เลือกหมวดหมู่ -->
         <div>
           <label class="block text-xs font-bold text-gray-700 mb-1">1. ประเภทเหตุการณ์</label>
           <select id="formCategory" class="w-full p-3 border rounded-xl text-xs bg-gray-50 font-bold text-gray-800" onchange="toggleFloodOptions()">
@@ -100,7 +99,6 @@
           <input type="range" id="waterLevel" min="0" max="100" value="20" step="5" class="w-full accent-blue-600 cursor-pointer h-2" oninput="updateWaterLabel(this.value)">
         </div>
 
-        <!-- 2. สภาพการจราจร (กดปุ่ม Choice) -->
         <div>
           <label class="block text-xs font-bold text-gray-700 mb-1.5">2. การสัญจรของรถยนต์</label>
           <div class="grid grid-cols-3 gap-1.5">
@@ -111,7 +109,6 @@
           <input type="hidden" id="passableValue" value="รถเล็กผ่านได้">
         </div>
 
-        <!-- 3. ถ่ายรูป / แนบรูป -->
         <div>
           <label class="block text-xs font-bold text-gray-700 mb-1">3. ถ่ายภาพ / เลือกรูป</label>
           <input type="file" id="imageInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageUpload(event)">
@@ -124,7 +121,6 @@
           </div>
         </div>
 
-        <!-- 4. รายละเอียดเพิ่มเติม -->
         <div>
           <label class="block text-xs font-bold text-gray-700 mb-1">4. รายละเอียดเพิ่มเติม (ถ้ามี)</label>
           <input type="text" id="formDesc" placeholder="เช่น บริเวณหน้าปากซอย" class="w-full p-2.5 border rounded-xl text-xs bg-gray-50">
@@ -138,9 +134,8 @@
     </div>
   </div>
 
-  <!-- โค้ดระบบแผนที่เดิม และ Firebase Auth -->
+  <!-- โค้ดระบบแผนที่เดิม -->
   <script>
-    // ตั้งค่าแผนที่
     const map = L.map('map', { zoomControl: false }).setView([13.7563, 100.5018], 12);
 
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -173,7 +168,6 @@
 
     let currentMarkersOnMap = [];
 
-    // ดึงพิกัด GPS ผู้ใช้ปัจจุบัน
     window.locateUser = function() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(position => {
@@ -187,23 +181,38 @@
       }
     };
 
-    // ปุ่มแอดมิน
+    // 🔒 ระบบตรวจสอบสิทธิ์ Admin ล็อกตายด้วยอีเมล sales108@gmail.com และรหัสผ่าน @@@###jek
     window.toggleAdminLogin = function() {
+      const currentUser = window.currentFirebaseUser;
+
       if (isAdmin) {
         isAdmin = false;
         alert("ออกจากโหมด Admin เรียบร้อย");
         document.getElementById('adminBtn').innerText = "🔒 แอดมิน";
+        renderMarkers(reportsData);
       } else {
+        if (!currentUser) {
+          alert("กรุณาเข้าสู่ระบบด้วย Google ก่อนครับ");
+          return;
+        }
+
+        // เช็คอีเมลว่าตรงกับของคุณเจ๊กหรือไม่
+        if (currentUser.email !== "sales108@gmail.com") {
+          alert("บัญชีนี้ไม่มีสิทธิ์เข้าใช้งานโหมด Admin ครับ!");
+          return;
+        }
+
+        // หากอีเมลตรงกัน ให้กรอกรหัสผ่านยืนยันอีกชั้น
         const password = prompt("กรอกรหัสผ่าน Admin:");
         if (password === "@@@###jek") {
           isAdmin = true;
           alert("เข้าสู่โหมด Admin สำเร็จ!");
           document.getElementById('adminBtn').innerText = "🔓 โหมดแอดมิน";
+          renderMarkers(reportsData);
         } else if (password !== null) {
           alert("รหัสผ่านไม่ถูกต้อง");
         }
       }
-      renderMarkers(reportsData);
     };
 
     window.updateWaterLabel = function(val) {
@@ -241,7 +250,6 @@
       document.getElementById('uploadBtnText').innerText = "กดเพื่อถ่ายรูป หรือ เลือกรูปภาพ";
     };
 
-    // เริ่มกดปักหมุด
     window.startPinning = function() {
       const center = map.getCenter();
       tempCoords = center;
@@ -299,7 +307,7 @@
       activeData.forEach(item => {
         const marker = L.marker([item.lat, item.lng]).addTo(map);
 
-        let deleteBtnHTML = isAdmin ? `<button onclick="deleteReport(${item.id})" class="mt-2 w-full bg-red-100 text-red-600 font-bold py-1 rounded text-xs">🗑️ ลบหมุดนี้ (Admin)</button>` : '';
+        let deleteBtnHTML = isAdmin ? `<button onclick="deleteReport(${item.id})" class="mt-2 w-full bg-red-100 text-red-600 font-bold py-1 rounded text-xs cursor-pointer">🗑️ ลบหมุดนี้ (Admin)</button>` : '';
 
         const popupHTML = `
           <div class="w-48 p-1">
@@ -346,7 +354,6 @@
         onAuthStateChanged 
     } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
-    // Firebase configuration สำหรับโปรเจกต์ pukpun-app-a3c35
     const firebaseConfig = {
         apiKey: "AIzaSyC-CtsQwKJalTtcV6nPjGAXehsjWn9HV3g",
         authDomain: "pukpun-app-a3c35.firebaseapp.com",
@@ -356,7 +363,6 @@
         appId: "1:892760631814:web:d86a1174139c985913b187"
     };
 
-    // Initialize Firebase
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const provider = new GoogleAuthProvider();
@@ -365,7 +371,8 @@
     const logoutBtn = document.getElementById('google-logout-btn');
     const authStatusText = document.getElementById('auth-status-text');
 
-    // ฟังก์ชันเข้าสู่ระบบด้วย Google
+    window.currentFirebaseUser = null;
+
     loginBtn.addEventListener('click', () => {
         signInWithPopup(auth, provider)
             .then((result) => {
@@ -377,15 +384,21 @@
             });
     });
 
-    // ฟังก์ชันออกจากระบบ
     logoutBtn.addEventListener('click', () => {
-        signOut(auth).catch((error) => {
+        signOut(auth).then(() => {
+            window.currentFirebaseUser = null;
+            if (typeof isAdmin !== 'undefined' && isAdmin) {
+                isAdmin = false;
+                document.getElementById('adminBtn').innerText = "🔒 แอดมิน";
+                renderMarkers(reportsData);
+            }
+        }).catch((error) => {
             console.error("Sign out error:", error);
         });
     });
 
-    // ตรวจสอบสถานะการล็อกอินแบบ Real-time
     onAuthStateChanged(auth, (user) => {
+        window.currentFirebaseUser = user;
         if (user) {
             authStatusText.innerText = `ยินดีต้อนรับ, ${user.displayName}`;
             loginBtn.style.display = 'none';
@@ -394,6 +407,12 @@
             authStatusText.innerText = "กรุณาเข้าสู่ระบบด้วย Google";
             loginBtn.style.display = 'inline-block';
             logoutBtn.style.display = 'none';
+            
+            if (window.isAdmin) {
+                isAdmin = false;
+                document.getElementById('adminBtn').innerText = "🔒 แอดมิน";
+                renderMarkers(reportsData);
+            }
         }
     });
   </script>
