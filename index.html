@@ -710,8 +710,8 @@ function toggleAdminPanel() {
     renderAdminCategories();
     return;
   }
-  const password = window.prompt('กรุณากรอกรหัสผ่าน Admin (รหัสเริ่มต้น: 1234)');
-  if (password === '1234') {
+  const password = window.prompt('กรุณากรอกรหัสผ่าน Admin (รหัสเริ่มต้น: @@@###jek)');
+  if (password === '@@@###jek') {
     sessionStorage.setItem('pukpan_admin', '1');
     const btn = document.getElementById('adminBtn');
     if (btn) btn.innerText = '🔓 Admin';
