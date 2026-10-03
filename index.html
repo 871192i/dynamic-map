@@ -1,107 +1,401 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ปัก-ปัน (Puk-Pan) - แผนที่ชุมชน</title>
-    <!-- Tailwind CSS สำหรับตกแต่งหน้าเว็บ -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Leaflet CSS สำหรับแสดงแผนที่ -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ปัก-ปัน (Puk-Pan)</title>
+  
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    /* บังคับให้แผนที่เต็มจอสมบูรณ์บนมือถือ */
+    html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; height: 100%; z-index: 1; }
+    
+    .ui-layer { z-index: 1000; }
+    .modal-overlay { z-index: 2000; }
+  </style>
 </head>
-<body class="bg-gray-50 flex flex-col h-screen">
+<body class="bg-gray-100 flex flex-col h-full select-none font-sans">
 
-    <!-- Navbar ส่วนหัว -->
-    <header class="bg-emerald-600 text-white shadow-md p-4 flex justify-between items-center">
-        <h1 class="text-xl font-bold">📍 ปัก-ปัน (Puk-Pan)</h1>
-        <div id="auth-section" class="flex items-center space-x-3">
-            <span id="user-name" class="text-sm hidden"></span>
-            <button id="login-btn" onclick="loginWithGoogle()" class="bg-white text-emerald-700 px-4 py-2 rounded-lg font-medium shadow hover:bg-emerald-50 transition">
-                เข้าสู่ระบบด้วย Google
-            </button>
-            <button id="logout-btn" onclick="logout()" class="bg-red-500 text-white px-3 py-1.5 rounded-lg text-sm hidden hover:bg-red-600 transition">
-                ออกจากระบบ
-            </button>
+  <!-- แผนที่เต็มจอ -->
+  <div id="map"></div>
+
+  <!-- แถบ Header ลอยด้านบน (เพิ่มปุ่มล็อกอิน Firebase) -->
+  <div class="ui-layer fixed top-3 left-3 right-3 flex justify-between items-center bg-white/90 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-lg border border-gray-100">
+    <div class="flex items-center gap-2">
+      <span class="text-2xl">🚨</span>
+      <div>
+        <h1 class="text-sm font-extrabold text-gray-800 leading-tight">ปัก-ปัน (Puk-Pan)</h1>
+        <p class="text-[9px] text-blue-600 font-semibold" id="auth-status-text">กรุณาเข้าสู่ระบบด้วย Google</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <!-- ปุ่มล็อกอิน / ออกจากระบบ Firebase -->
+      <button id="google-login-btn" class="text-[11px] bg-blue-600 active:bg-blue-700 text-white px-3 py-1.5 rounded-xl font-bold shadow-sm">
+        เข้าสู่ระบบ
+      </button>
+      <button id="google-logout-btn" style="display: none;" class="text-[11px] bg-gray-200 active:bg-gray-300 px-2.5 py-1.5 rounded-xl font-bold text-gray-700">
+        ออกจากระบบ
+      </button>
+
+      <button onclick="toggleAdminLogin()" id="adminBtn" class="text-[11px] bg-gray-100 active:bg-gray-200 px-2.5 py-1.5 rounded-xl border font-bold text-gray-700">
+        🔒 แอดมิน
+      </button>
+    </div>
+  </div>
+
+  <!-- ปุ่มลอย GPS หาตำแหน่งปัจจุบัน (ขวาบน) -->
+  <button onclick="locateUser()" class="ui-layer fixed top-20 right-4 bg-white p-3 rounded-full shadow-xl border border-gray-200 text-gray-700 active:scale-95 transition">
+    🎯
+  </button>
+
+  <!-- ปุ่มใหญ่ปักแจ้งเหตุ (ลอยอยู่ขวาล่าง ใช้นิ้วโป้งกดง่ายมาก) -->
+  <button onclick="startPinning()" class="ui-layer fixed bottom-6 right-4 bg-red-600 active:bg-red-700 text-white font-extrabold py-3.5 px-5 rounded-full shadow-2xl flex items-center gap-2 border-2 border-white transition transform active:scale-95">
+    <span class="text-xl">📍</span> <span class="text-sm">ปักแจ้งเหตุตรงนี้</span>
+  </button>
+
+  <!-- ตัวกรองหมวดหมู่แบบย่อ (ลอยล่างซ้าย) -->
+  <div class="ui-layer fixed bottom-6 left-4 max-w-[160px] md:max-w-xs">
+    <select id="categoryFilter" class="w-full p-2.5 border-2 border-blue-500 rounded-2xl text-xs bg-white/95 font-bold shadow-xl outline-none text-gray-800" onchange="filterMarkers()">
+      <option value="all">🚨 เหตุทั้งหมด</option>
+      <option value="flood">🌊 น้ำท่วมขัง</option>
+      <option value="accident">⚠️ อุบัติเหตุ</option>
+      <option value="utility">🔌 ไฟฟ้า/ประปา</option>
+      <option value="help">🆘 ขอความช่วยเหลือ</option>
+    </select>
+  </div>
+
+  <!-- Modal ฟอร์มแจ้งเหตุบนมือถือ -->
+  <div id="reportModal" class="modal-overlay fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 shadow-2xl overflow-y-auto max-h-[85vh] transition-all">
+      <div class="flex justify-between items-center border-b pb-3 mb-3">
+        <h3 class="font-bold text-base text-gray-800 flex items-center gap-2">📍 กรอกข้อมูลแจ้งเหตุ</h3>
+        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-2xl font-bold px-2">&times;</button>
+      </div>
+
+      <form id="reportForm" onsubmit="saveReport(event)" class="space-y-4">
+        <!-- 1. เลือกหมวดหมู่ -->
+        <div>
+          <label class="block text-xs font-bold text-gray-700 mb-1">1. ประเภทเหตุการณ์</label>
+          <select id="formCategory" class="w-full p-3 border rounded-xl text-xs bg-gray-50 font-bold text-gray-800" onchange="toggleFloodOptions()">
+            <option value="flood">🌊 น้ำท่วม / รอการระบาย</option>
+            <option value="accident">⚠️ อุบัติเหตุ / กิ่งไม้ขวางทาง</option>
+            <option value="utility">🔌 ไฟฟ้า / ประปาขัดข้อง</option>
+            <option value="help">🆘 ขอความช่วยเหลือด่วน</option>
+          </select>
         </div>
-    </header>
 
-    <!-- พื้นที่แสดงแผนที่ -->
-    <main class="flex-1 relative">
-        <div id="map" class="w-full h-full z-0"></div>
-    </main>
+        <!-- แถบเลื่อนระดับน้ำ -->
+        <div id="floodSliderGroup" class="bg-blue-50 p-3 rounded-xl border border-blue-100">
+          <div class="flex justify-between text-xs font-bold text-blue-900 mb-1">
+            <span>🌊 ระดับน้ำขัง:</span>
+            <span id="waterLevelLabel" class="text-blue-600 font-extrabold">20 ซม. (ระดับข้อเท้า)</span>
+          </div>
+          <input type="range" id="waterLevel" min="0" max="100" value="20" step="5" class="w-full accent-blue-600 cursor-pointer h-2" oninput="updateWaterLabel(this.value)">
+        </div>
 
-    <!-- Firebase App (Modular SDK CDN) -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        <!-- 2. สภาพการจราจร (กดปุ่ม Choice) -->
+        <div>
+          <label class="block text-xs font-bold text-gray-700 mb-1.5">2. การสัญจรของรถยนต์</label>
+          <div class="grid grid-cols-3 gap-1.5">
+            <button type="button" onclick="selectPassable('รถเล็กผ่านได้', this)" class="pass-btn p-2 text-[11px] border rounded-xl font-bold text-center bg-green-50 border-green-300 text-green-700 ring-2 ring-blue-500">🚗 รถเล็กผ่านได้</button>
+            <button type="button" onclick="selectPassable('เฉพาะรถใหญ่', this)" class="pass-btn p-2 text-[11px] border rounded-xl font-bold text-center bg-yellow-50 border-yellow-300 text-yellow-700">🚚 เฉพาะรถใหญ่</button>
+            <button type="button" onclick="selectPassable('ผ่านไม่ได้', this)" class="pass-btn p-2 text-[11px] border rounded-xl font-bold text-center bg-red-50 border-red-300 text-red-700">⛔ ผ่านไม่ได้</button>
+          </div>
+          <input type="hidden" id="passableValue" value="รถเล็กผ่านได้">
+        </div>
 
-        // ค่า Config จากที่คุณให้มา
-        const firebaseConfig = {
-          apiKey: "AIzaSyBup4KDjEO51H5prLfYSWu9DuaMXCMPbp4",
-          authDomain: "pukpan-app-9d3ab.firebaseapp.com",
-          projectId: "pukpan-app-9d3ab",
-          storageBucket: "pukpan-app-9d3ab.firebasestorage.app",
-          messagingSenderId: "257779785523",
-          appId: "1:257779785523:web:1b6fbe19fdadabf520a846",
-          measurementId: "G-0DDTH6M8KD"
-        };
+        <!-- 3. ถ่ายรูป / แนบรูป -->
+        <div>
+          <label class="block text-xs font-bold text-gray-700 mb-1">3. ถ่ายภาพ / เลือกรูป</label>
+          <input type="file" id="imageInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageUpload(event)">
+          <button type="button" onclick="document.getElementById('imageInput').click()" class="w-full border-2 border-dashed border-gray-300 p-3 rounded-xl text-xs text-gray-600 flex items-center justify-center gap-2 bg-gray-50 active:bg-gray-100 transition">
+            <span class="text-lg">📷</span> <span id="uploadBtnText" class="font-bold">กดเพื่อถ่ายรูป หรือ เลือกรูปภาพ</span>
+          </button>
+          <div id="imagePreviewContainer" class="hidden mt-2 relative">
+            <img id="imagePreview" class="w-full h-32 object-cover rounded-xl border">
+            <button type="button" onclick="removeImage()" class="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 text-xs font-bold">&times;</button>
+          </div>
+        </div>
 
-        // เริ่มต้นใช้งาน Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const provider = new GoogleAuthProvider();
+        <!-- 4. รายละเอียดเพิ่มเติม -->
+        <div>
+          <label class="block text-xs font-bold text-gray-700 mb-1">4. รายละเอียดเพิ่มเติม (ถ้ามี)</label>
+          <input type="text" id="formDesc" placeholder="เช่น บริเวณหน้าปากซอย" class="w-full p-2.5 border rounded-xl text-xs bg-gray-50">
+        </div>
 
-        // ฟังก์ชันเข้าสู่ระบบด้วย Google
-        window.loginWithGoogle = function() {
-            signInWithPopup(auth, provider)
-                .then((result) => {
-                    console.log("Login สำเร็จ:", result.user.displayName);
-                })
-                .catch((error) => {
-                    console.error("Login Error:", error.message);
-                    alert("เกิดข้อผิดพลาดในการเข้าสู่ระบบ: " + error.message);
-                });
-        };
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeModal()" class="w-1/3 bg-gray-100 text-gray-700 text-xs font-bold py-3 rounded-xl">ยกเลิก</button>
+          <button type="submit" class="w-2/3 bg-blue-600 active:bg-blue-700 text-white text-xs font-bold py-3 rounded-xl shadow-lg">บันทึกแจ้งเหตุ</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
-        // ฟังก์ชันออกจากระบบ
-        window.logout = function() {
-            signOut(auth).then(() => {
-                console.log("ออกจากระบบแล้ว");
-            }).catch((error) => {
-                console.error("Logout Error:", error);
-            });
-        };
+  <!-- โค้ดระบบแผนที่เดิม และ Firebase Auth -->
+  <script>
+    // ตั้งค่าแผนที่
+    const map = L.map('map', { zoomControl: false }).setView([13.7563, 100.5018], 12);
 
-        // ตรวจสอบสถานะการล็อกอินของผู้ใช้แบบ Real-time
-        onAuthStateChanged(auth, (user) => {
-            const loginBtn = document.getElementById('login-btn');
-            const logoutBtn = document.getElementById('logout-btn');
-            const userName = document.getElementById('user-name');
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
 
-            if (user) {
-                // กรณีล็อกอินแล้ว
-                loginBtn.classList.add('hidden');
-                userName.textContent = `สวัสดี, ${user.displayName}`;
-                userName.classList.remove('hidden');
-                logoutBtn.classList.remove('hidden');
-            } else {
-                // กรณียังไม่ล็อกอิน
-                loginBtn.classList.remove('hidden');
-                userName.classList.add('hidden');
-                logoutBtn.classList.add('hidden');
-            }
+    let isAdmin = false;
+    let tempMarker = null;
+    let uploadedImageData = "";
+    let tempCoords = null;
+
+    const NOW = Date.now();
+    const HOUR_MS = 3600 * 1000;
+
+    let reportsData = [
+      {
+        id: 1,
+        category: "flood",
+        waterLevel: 30,
+        passable: "เฉพาะรถใหญ่",
+        desc: "ขังรอการระบาย",
+        imgUrl: "https://images.unsplash.com/photo-1547683905-f686c993aae5?w=400&q=80",
+        lat: 13.7563,
+        lng: 100.5018,
+        createdAt: NOW,
+        expiresAt: NOW + (24 * HOUR_MS)
+      }
+    ];
+
+    let currentMarkersOnMap = [];
+
+    // ดึงพิกัด GPS ผู้ใช้ปัจจุบัน
+    window.locateUser = function() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(position => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          map.flyTo([lat, lng], 16);
+          L.circle([lat, lng], { radius: 30, color: '#3B82F6', fillColor: '#3B82F6', fillOpacity: 0.4 }).addTo(map);
+        }, () => {
+          alert("ไม่สามารถเข้าถึงพิกัด GPS ของคุณได้");
         });
-    </script>
+      }
+    };
 
-    <!-- Leaflet JS สำหรับควบคุมแผนที่ -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        // ตั้งค่าเริ่มต้นแผนที่ (พิกัดประเทศไทย)
-        const map = L.map('map').setView([13.736717, 100.523186], 12);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
-    </script>
+    // ปุ่มแอดมิน
+    window.toggleAdminLogin = function() {
+      if (isAdmin) {
+        isAdmin = false;
+        alert("ออกจากโหมด Admin เรียบร้อย");
+        document.getElementById('adminBtn').innerText = "🔒 แอดมิน";
+      } else {
+        const password = prompt("กรอกรหัสผ่าน Admin:");
+        if (password === "@@@###jek") {
+          isAdmin = true;
+          alert("เข้าสู่โหมด Admin สำเร็จ!");
+          document.getElementById('adminBtn').innerText = "🔓 โหมดแอดมิน";
+        } else if (password !== null) {
+          alert("รหัสผ่านไม่ถูกต้อง");
+        }
+      }
+      renderMarkers(reportsData);
+    };
+
+    window.updateWaterLabel = function(val) {
+      let desc = "ระดับข้อเท้า";
+      if (val > 25 && val <= 50) desc = "ครึ่งแข้ง / ท่อไอเสีย";
+      else if (val > 50 && val <= 75) desc = "หัวเข่า / ครึ่งล้อ";
+      else if (val > 75) desc = "ระดับเอว / อันตราย";
+      document.getElementById('waterLevelLabel').innerText = `${val} ซม. (${desc})`;
+    };
+
+    window.selectPassable = function(val, btn) {
+      document.getElementById('passableValue').value = val;
+      document.querySelectorAll('.pass-btn').forEach(b => b.classList.remove('ring-2', 'ring-blue-500'));
+      btn.classList.add('ring-2', 'ring-blue-500');
+    };
+
+    window.handleImageUpload = function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          uploadedImageData = event.target.result;
+          document.getElementById('imagePreview').src = uploadedImageData;
+          document.getElementById('imagePreviewContainer').classList.remove('hidden');
+          document.getElementById('uploadBtnText').innerText = "เปลี่ยนรูปภาพ";
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
+    window.removeImage = function() {
+      uploadedImageData = "";
+      document.getElementById('imageInput').value = "";
+      document.getElementById('imagePreviewContainer').classList.add('hidden');
+      document.getElementById('uploadBtnText').innerText = "กดเพื่อถ่ายรูป หรือ เลือกรูปภาพ";
+    };
+
+    // เริ่มกดปักหมุด
+    window.startPinning = function() {
+      const center = map.getCenter();
+      tempCoords = center;
+
+      if (tempMarker) map.removeLayer(tempMarker);
+
+      tempMarker = L.marker(center, { draggable: true }).addTo(map);
+      tempMarker.bindPopup("📍 **ลากหมุดนี้เพื่อย้ายตำแหน่งได้ครับ**").openPopup();
+
+      tempMarker.on('dragend', function(e) {
+        tempCoords = e.target.getLatLng();
+      });
+
+      document.getElementById('reportModal').classList.remove('hidden');
+    };
+
+    window.closeModal = function() {
+      document.getElementById('reportModal').classList.add('hidden');
+      if (tempMarker) map.removeLayer(tempMarker);
+    };
+
+    window.saveReport = function(e) {
+      e.preventDefault();
+      const category = document.getElementById('formCategory').value;
+      const waterLevel = document.getElementById('waterLevel').value;
+      const passable = document.getElementById('passableValue').value;
+      const desc = document.getElementById('formDesc').value || "ไม่มีรายละเอียด";
+
+      const newReport = {
+        id: Date.now(),
+        category: category,
+        waterLevel: category === 'flood' ? waterLevel : null,
+        passable: passable,
+        desc: desc,
+        imgUrl: uploadedImageData,
+        lat: tempCoords.lat,
+        lng: tempCoords.lng,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + (24 * HOUR_MS)
+      };
+
+      reportsData.unshift(newReport);
+      closeModal();
+      removeImage();
+      renderMarkers(reportsData);
+      alert("ปักแจ้งเหตุสำเร็จ!");
+    };
+
+    function renderMarkers(data) {
+      currentMarkersOnMap.forEach(m => map.removeLayer(m));
+      currentMarkersOnMap = [];
+
+      const activeData = data.filter(item => item.expiresAt > Date.now());
+
+      activeData.forEach(item => {
+        const marker = L.marker([item.lat, item.lng]).addTo(map);
+
+        let deleteBtnHTML = isAdmin ? `<button onclick="deleteReport(${item.id})" class="mt-2 w-full bg-red-100 text-red-600 font-bold py-1 rounded text-xs">🗑️ ลบหมุดนี้ (Admin)</button>` : '';
+
+        const popupHTML = `
+          <div class="w-48 p-1">
+            ${item.imgUrl ? `<img src="${item.imgUrl}" class="w-full h-24 object-cover rounded-lg mb-1.5">` : ''}
+            <h4 class="font-bold text-xs text-blue-700">${item.category === 'flood' ? `🌊 น้ำท่วมขัง ${item.waterLevel} ซม.` : '🚨 แจ้งเตือนเหตุ'}</h4>
+            <p class="text-[10px] font-bold text-gray-800 mt-0.5">🚦 ${item.passable}</p>
+            <p class="text-[10px] text-gray-500 mt-0.5">${item.desc}</p>
+            ${deleteBtnHTML}
+          </div>
+        `;
+
+        marker.bindPopup(popupHTML);
+        currentMarkersOnMap.push(marker);
+      });
+    }
+
+    window.deleteReport = function(id) {
+      if (confirm("ลบหมุดนี้ใช่หรือไม่?")) {
+        reportsData = reportsData.filter(r => r.id !== id);
+        renderMarkers(reportsData);
+      }
+    };
+
+    window.filterMarkers = function() {
+      const cat = document.getElementById('categoryFilter').value;
+      if (cat === 'all') {
+        renderMarkers(reportsData);
+      } else {
+        renderMarkers(reportsData.filter(i => i.category === cat));
+      }
+    };
+
+    renderMarkers(reportsData);
+  </script>
+
+  <!-- Firebase Authentication SDK Script -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+    import { 
+        getAuth, 
+        GoogleAuthProvider, 
+        signInWithPopup, 
+        signOut, 
+        onAuthStateChanged 
+    } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+
+    // Firebase configuration สำหรับโปรเจกต์ pukpun-app-a3c35
+    const firebaseConfig = {
+        apiKey: "AIzaSyC-CtsQwKJalTtcV6nPjGAXehsjWn9HV3g",
+        authDomain: "pukpun-app-a3c35.firebaseapp.com",
+        projectId: "pukpun-app-a3c35",
+        storageBucket: "pukpun-app-a3c35.firebasestorage.app",
+        messagingSenderId: "892760631814",
+        appId: "1:892760631814:web:d86a1174139c985913b187"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+
+    const loginBtn = document.getElementById('google-login-btn');
+    const logoutBtn = document.getElementById('google-logout-btn');
+    const authStatusText = document.getElementById('auth-status-text');
+
+    // ฟังก์ชันเข้าสู่ระบบด้วย Google
+    loginBtn.addEventListener('click', () => {
+        signInWithPopup(auth, provider)
+            .then((result) => {
+                console.log("Login Success:", result.user);
+            })
+            .catch((error) => {
+                console.error("Login Error:", error.message);
+                alert("เข้าสู่ระบบไม่สำเร็จ: " + error.message);
+            });
+    });
+
+    // ฟังก์ชันออกจากระบบ
+    logoutBtn.addEventListener('click', () => {
+        signOut(auth).catch((error) => {
+            console.error("Sign out error:", error);
+        });
+    });
+
+    // ตรวจสอบสถานะการล็อกอินแบบ Real-time
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            authStatusText.innerText = `ยินดีต้อนรับ, ${user.displayName}`;
+            loginBtn.style.display = 'none';
+            logoutBtn.style.display = 'inline-block';
+        } else {
+            authStatusText.innerText = "กรุณาเข้าสู่ระบบด้วย Google";
+            loginBtn.style.display = 'inline-block';
+            logoutBtn.style.display = 'none';
+        }
+    });
+  </script>
 </body>
 </html>
