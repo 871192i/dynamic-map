@@ -17,9 +17,6 @@
       onAuthStateChanged
     } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 
-    // ==========================================================
-    // TODO: ใส่ค่า Firebase Config ของโปรเจกต์คุณที่นี่เพื่อเปิดใช้ Gmail Login จริง
-    // ==========================================================
     window.FIREBASE_CONFIG = {
       apiKey: "YOUR_API_KEY",
       authDomain: "YOUR_PROJECT.firebaseapp.com",
@@ -38,21 +35,12 @@
         const provider = new GoogleAuthProvider();
 
         window.googleLogin = async function () {
-          try {
-            const result = await signInWithPopup(auth, provider);
-            return result.user;
-          } catch (err) {
-            console.error("Google Login Error:", err);
-            throw err;
-          }
+          const result = await signInWithPopup(auth, provider);
+          return result.user;
         };
 
         window.googleLogout = async function () {
-          try {
-            await signOut(auth);
-          } catch (err) {
-            console.error("Google Logout Error:", err);
-          }
+          await signOut(auth);
         };
 
         onAuthStateChanged(auth, user => {
@@ -127,44 +115,54 @@
     📍 วางหมุดตรงนี้
   </button>
   <button onclick="cancelPinLocation()"
-    class="fixed top-24 left-1/2 -translate-x-1/2 z-[1600] bg-white text-gray-700 px-4 py-2 rounded-full shadow-lg text-xs font-bold">
+    class="fixed top-28 left-1/2 -translate-x-1/2 z-[1600] bg-white text-gray-700 px-4 py-2 rounded-full shadow-lg text-xs font-bold">
     ยกเลิก
   </button>
 </div>
 
-<!-- Header -->
-<div class="ui-layer fixed top-3 left-3 right-3 flex justify-between items-center bg-white/92 backdrop-blur-md px-3 py-2.5 rounded-2xl shadow-lg border border-gray-100">
-  <div class="flex items-center gap-2">
-    <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-pink-300 via-purple-300 to-blue-300 flex items-center justify-center text-2xl shadow-sm">
-      📍
+<!-- Header & Search Box -->
+<div class="ui-layer fixed top-3 left-3 right-3 flex flex-col gap-2">
+  <div class="flex justify-between items-center bg-white/95 backdrop-blur-md px-3 py-2.5 rounded-2xl shadow-lg border border-gray-100">
+    <div class="flex items-center gap-2">
+      <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-pink-300 via-purple-300 to-blue-300 flex items-center justify-center text-2xl shadow-sm">
+        📍
+      </div>
+      <div>
+        <h1 class="text-sm font-extrabold text-gray-800 leading-tight">ปัก-ปัน</h1>
+        <p class="text-[9px] text-purple-600 font-semibold">ปักสิ่งที่รู้ • ปันสิ่งที่เห็น</p>
+      </div>
     </div>
-    <div>
-      <h1 class="text-sm font-extrabold text-gray-800 leading-tight">ปัก-ปัน</h1>
-      <p class="text-[9px] text-purple-600 font-semibold">ปักสิ่งที่รู้ • ปันสิ่งที่เห็น</p>
+
+    <div class="flex items-center gap-1.5">
+      <button onclick="loginWithGoogle()" id="loginBtn"
+        class="text-[10px] bg-gray-100 px-3 py-2 rounded-xl border font-bold text-gray-700">
+        🔐 Gmail
+      </button>
+      <button type="button" onclick="toggleAdminPanel()" id="adminBtn"
+        class="text-[10px] bg-purple-100 px-3 py-2 rounded-xl border border-purple-200 font-bold text-purple-700">
+        ⚙️️ Admin
+      </button>
     </div>
   </div>
 
-  <div class="flex items-center gap-1.5">
-    <button onclick="loginWithGoogle()" id="loginBtn"
-      class="text-[10px] bg-gray-100 px-3 py-2 rounded-xl border font-bold text-gray-700">
-      🔐 Gmail
-    </button>
-    <button type="button" onclick="toggleAdminPanel()" id="adminBtn"
-      class="text-[10px] bg-purple-100 px-3 py-2 rounded-xl border border-purple-200 font-bold text-purple-700">
-      ⚙️ Admin
-    </button>
+  <!-- ช่องค้นหาสถานที่ -->
+  <div class="flex gap-1.5 bg-white/95 backdrop-blur-md p-2 rounded-2xl shadow-lg border border-gray-100">
+    <input id="searchQuery" type="text" placeholder="🔍 ค้นหาสถานที่ เช่น บางรักน้อย, เซ็นทรัล..." 
+      class="w-full px-3 py-2 text-xs bg-gray-50 border rounded-xl outline-none font-medium"
+      onkeypress="if(event.key==='Enter') searchLocation()">
+    <button onclick="searchLocation()" class="bg-purple-600 text-white px-4 py-2 rounded-xl text-xs font-bold shrink-0">ค้นหา</button>
   </div>
 </div>
 
-<!-- User -->
-<div id="userBadge" class="ui-layer hidden fixed top-[76px] left-3 bg-white/95 rounded-full px-3 py-1.5 shadow text-[10px] font-bold text-gray-700"></div>
+<!-- User Badge -->
+<div id="userBadge" class="ui-layer hidden fixed top-[120px] left-3 bg-white/95 rounded-full px-3 py-1.5 shadow text-[10px] font-bold text-gray-700"></div>
 
 <!-- GPS / Around Me -->
-<div class="ui-layer fixed top-20 right-4 flex flex-col gap-2">
+<div class="ui-layer fixed top-32 right-4 flex flex-col gap-2">
   <button type="button" onclick="locateUser()" class="bg-white p-3 rounded-full shadow-xl border border-gray-200 text-gray-700 active:scale-95">🎯</button>
   <button type="button" onclick="showNearby()" class="bg-white px-3 py-2.5 rounded-2xl shadow-xl border border-gray-200 text-gray-700 active:scale-95 text-[10px] font-extrabold">📍 ฉันอยู่ตรงนี้</button>
 </div>
-<div id="nearbyBar" class="ui-layer hidden fixed top-[145px] left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur rounded-full px-4 py-2 shadow-xl border text-[10px] font-extrabold text-purple-700">📍 กำลังดูสิ่งที่อยู่รอบตัวฉัน <button onclick="clearNearbyMode()" class="ml-2 text-gray-400">✕</button></div>
+<div id="nearbyBar" class="ui-layer hidden fixed top-[180px] left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur rounded-full px-4 py-2 shadow-xl border text-[10px] font-extrabold text-purple-700">📍 กำลังดูสิ่งที่อยู่รอบตัวฉัน <button onclick="clearNearbyMode()" class="ml-2 text-gray-400">✕</button></div>
 
 <!-- Filter -->
 <div class="ui-layer fixed bottom-6 left-4 max-w-[190px]">
@@ -184,7 +182,7 @@
     <div class="flex justify-between items-center mb-3">
       <div>
         <h3 class="font-extrabold text-lg">ปักเรื่องอะไรดี?</h3>
-        <p class="text-[10px] text-gray-500">เลือกจากรายการ ไม่ต้องพิมพ์ก็ได้</p>
+        <p class="text-[10px] text-gray-500">เลือกหมวดหมู่ที่ต้องการปักหมุด</p>
       </div>
       <button onclick="closeActionModal()" class="text-2xl text-gray-400">&times;</button>
     </div>
@@ -246,18 +244,19 @@
     <div class="flex justify-between">
       <div>
         <h3 class="font-extrabold text-lg">⚙️ จัดการปัก-ปัน (Admin)</h3>
-        <p class="text-[10px] text-gray-500">เพิ่มหมวดหมู่ได้จากหน้าจอนี้ โดยไม่ต้องแก้โค้ด</p>
+        <p class="text-[10px] text-gray-500">เพิ่มหมวดหมู่ร้านค้าหรือบริการได้ทันที</p>
       </div>
       <button onclick="closeAdminPanel()" class="text-2xl text-gray-400">&times;</button>
     </div>
 
     <div class="mt-4 space-y-3">
-      <input id="adminCatName" class="w-full p-3 border rounded-xl text-sm" placeholder="ชื่อหมวด เช่น ร้านกาแฟ">
-      <input id="adminCatIcon" class="w-full p-3 border rounded-xl text-sm" placeholder="ไอคอน เช่น ☕">
+      <input id="adminCatName" class="w-full p-3 border rounded-xl text-sm" placeholder="ชื่อหมวด เช่น ร้านขายของชำ">
+      <input id="adminCatIcon" class="w-full p-3 border rounded-xl text-sm" placeholder="ไอคอน เช่น 🛒">
       <div>
         <label class="text-xs font-bold text-gray-600">ชนิดข้อมูล</label>
         <select id="adminCatType" class="w-full p-3 border rounded-xl text-sm mt-1">
-          <option value="place">📍 สถานที่ / ข้อมูลทั่วไป</option>
+          <option value="store">🏬 ร้านค้า / บริการทั่วไป</option>
+          <option value="place">📍 สถานที่ / เหตุการณ์ทั่วไป</option>
           <option value="photo_quest">📷 เควสขอรูปจากคนในพื้นที่</option>
           <option value="help">🆘 ความช่วยเหลือชั่วคราว 2 ชั่วโมง</option>
         </select>
@@ -290,7 +289,6 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 const HOUR_MS = 3600000;
-const HELP_LIFETIME = 2 * HOUR_MS;
 const QUEST_LIMIT = 5;
 
 let currentMarkersOnMap = [];
@@ -300,9 +298,11 @@ let selectedCategory = null;
 let activeQuest = null;
 let currentUser = null;
 
+// จัดหมวดหมู่ร้านค้าและบริการแบบแยกหมวดหมู่ย่อยชัดเจน
 const defaultCategories = [
-  {id:'coffee', name:'ร้านกาแฟ', icon:'☕', type:'place'},
-  {id:'restaurant', name:'ร้านอาหาร', icon:'🍜', type:'place'},
+  {id:'coffee', name:'ร้านกาแฟ', icon:'☕', type:'store'},
+  {id:'restaurant', name:'ร้านอาหาร', icon:'🍜', type:'store'},
+  {id:'grocery', name:'ร้านขายของชำ', icon:'🛒', type:'store'},
   {id:'ev', name:'จุดชาร์จรถไฟฟ้า', icon:'⚡', type:'place'},
   {id:'flood', name:'น้ำท่วม / รอการระบาย', icon:'🌊', type:'place'},
   {id:'accident', name:'อุบัติเหตุ / สิ่งกีดขวาง', icon:'⚠️', type:'place'},
@@ -337,13 +337,42 @@ function refreshCategoryUI() {
         <div class="text-2xl">${c.icon}</div>
         <div class="font-extrabold text-xs mt-1">${escapeHtml(c.name)}</div>
         <div class="text-[9px] text-gray-500 mt-0.5">
-          ${c.type === 'photo_quest' ? 'ช่วยกันตอบได้ 5 คน' : c.type === 'help' ? 'อยู่ 2 ชั่วโมง' : 'ปักข้อมูล'}
+          ${c.type === 'store' ? 'ร้านค้า / บริการ' : c.type === 'photo_quest' ? 'เควสขอรูป 5 คน' : c.type === 'help' ? 'อยู่ 2 ชม.' : 'ปักข้อมูล'}
         </div>
       </button>
     `).join('');
   }
 
   renderAdminCategories();
+}
+
+// ระบบค้นหาสถานที่ด้วย Nominatim OpenStreetMap
+async function searchLocation() {
+  const query = document.getElementById('searchQuery').value.trim();
+  if (!query) return alert('กรุณากรอกชื่อสถานที่ที่ต้องการค้นหา');
+
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+    if (!data || data.length === 0) {
+      alert('ไม่พบสถานที่ดังกล่าว กรุณาลองใหม่อีกครั้ง');
+      return;
+    }
+    const loc = data[0];
+    const latlng = [parseFloat(loc.lat), parseFloat(loc.lon)];
+    
+    // เคลື່ยนย้ายแผนที่ไปจุดที่ค้นพบ และเปิดโหมดวางหมุดรอไว้
+    map.flyTo(latlng, 16);
+    tempCoords = { lat: latlng[0], lng: latlng[1] };
+    
+    // แจ้งเตือนผู้ใช้ให้กดยืนยันวางหมุด
+    if (confirm(`พบสถานที่: ${loc.display_name}\nต้องการวางหมุดที่ตำแหน่งนี้หรือไม่?`)) {
+      document.getElementById('actionModal').classList.remove('hidden');
+    }
+  } catch (err) {
+    console.error(err);
+    alert('เกิดข้อผิดพลาดในการค้นหาสถานที่');
+  }
 }
 
 function startPinning() {
@@ -378,7 +407,7 @@ function chooseCategory(id) {
   document.getElementById('reportSubtitle').innerText =
     selectedCategory.type === 'help' ? 'รายการนี้จะอยู่บนแผนที่ 2 ชั่วโมง' :
     selectedCategory.type === 'photo_quest' ? 'ชวนคนในพื้นที่ช่วยกันถ่ายรูป สูงสุด 5 รูป' :
-    'เลือกข้อมูลจากรายการด้านล่าง';
+    'เลือกข้อมูลรายละเอียดร้านค้าหรือสถานที่';
 
   buildReportFields();
   document.getElementById('reportModal').classList.remove('hidden');
@@ -388,9 +417,9 @@ function buildReportFields() {
   const c = selectedCategory;
   let html = '';
 
-  if (c.id === 'coffee' || c.id === 'restaurant') {
-    html += choiceField('ช่วงราคา', ['฿ ต่ำกว่า 100','฿฿ 100–200','฿฿฿ มากกว่า 200']);
-    html += choiceField('เปิดให้บริการ', ['เปิดอยู่','ยังไม่เปิด','ไม่ทราบ']);
+  if (c.type === 'store' || c.id === 'coffee' || c.id === 'restaurant' || c.id === 'grocery') {
+    html += choiceField('ช่วงราคา / เรทราคา', ['฿ ต่ำกว่า 100','฿฿ 100–300','฿฿฿ มากกว่า 300']);
+    html += choiceField('สถานะร้าน', ['เปิดให้บริการ','ปิดบริการชั่วคราว','ไม่ทราบ']);
   } else if (c.id === 'ev') {
     html += choiceField('สถานะจุดชาร์จ', ['ว่าง','กำลังใช้งาน','เสีย / ใช้ไม่ได้','ไม่ทราบ']);
     html += choiceField('ประเภทหัวชาร์จ', ['AC','DC','AC + DC','ไม่ทราบ']);
@@ -527,21 +556,27 @@ function saveReport() {
   alert(selectedCategory.type === 'photo_quest' ? '📷 เปิดเควสขอรูปแล้ว' : '📍 ปัก-ปันสำเร็จ');
 }
 
+// ปรับปรุงการแสดงผลหมุด ให้ย่อขนาดเล็กลงอัตโนมัติตามระดับการซูมแผนที่ (Zoom Out)
 function renderMarkers(data) {
   currentMarkersOnMap.forEach(m => map.removeLayer(m));
   currentMarkersOnMap = [];
 
   const now = Date.now();
   const active = data.filter(x => x.expiresAt > now);
+  const currentZoom = map.getZoom();
+  
+  // คำนวณขนาดไอคอนตามระดับ Zoom (ยิ่งซูมออกเลข zoom ยิ่งน้อย ไอคอนจะเล็กลง)
+  let iconSizePx = Math.max(18, Math.min(32, currentZoom * 2.2));
+  let anchorOffset = iconSizePx / 2;
 
   active.forEach(item => {
     const c = getCategory(item.category);
     const marker = L.marker([item.lat,item.lng], {
       icon: L.divIcon({
         className:'',
-        html:`<div style="font-size:30px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.3))">${c.icon}</div>`,
-        iconSize:[35,35],
-        iconAnchor:[17,30]
+        html:`<div style="font-size:${iconSizePx}px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3); transition: font-size 0.2s;">${c.icon}</div>`,
+        iconSize:[iconSizePx + 5, iconSizePx + 5],
+        iconAnchor:[anchorOffset, iconSizePx]
       })
     }).addTo(map);
 
@@ -573,6 +608,11 @@ function renderMarkers(data) {
     currentMarkersOnMap.push(marker);
   });
 }
+
+// อัปเดตขนาดหมุดทันทีเมื่อผู้ใช้ซูมเข้าหรือซูมออกแผนที่
+map.on('zoomend', () => {
+  renderMarkers(reportsData);
+});
 
 function filterMarkers() {
   clearNearbyMode(false);
@@ -663,7 +703,7 @@ function removeCategory(id) {
   refreshCategoryUI();
 }
 
-// ปรับปรุงฟังก์ชัน Admin ให้ทำงานสมบูรณ์
+// ระบบ Admin พร้อมใช้งานทันที
 function toggleAdminPanel() {
   if (isAdminUser()) {
     document.getElementById('adminPanel').classList.remove('hidden');
@@ -700,16 +740,13 @@ function isAdminUser() {
   return sessionStorage.getItem('pukpan_admin') === '1';
 }
 
-// ปรับปรุงฟังก์ชัน Login ด้วย Gmail
 async function loginWithGoogle() {
   if (!window.firebaseReady || typeof window.googleLogin !== 'function') {
-    const useDemo = window.confirm('ระบบยังไม่ได้ตั้งค่า Firebase Config จริง (ยังเป็น Demo Mode)\nต้องการจำลองจำนองเข้าสู่ระบบด้วยชื่อ Demo User หรือไม่?');
+    const useDemo = window.confirm('ระบบยังไม่ได้ตั้งค่า Firebase Config จริง (Demo Mode)\nต้องการจำลองเข้าสู่ระบบหรือไม่?');
     if (useDemo) {
       currentUser = { displayName: 'ผู้ใช้งาน (Demo)', email: 'demo@pukpan.local' };
       window.dispatchEvent(new CustomEvent("auth-changed", { detail: currentUser }));
       alert('เข้าสู่ระบบแบบ Demo สำเร็จ');
-    } else {
-      alert('กรุณาใส่ Firebase Config ของคุณในโค้ดบรรทัด <script type="module"> ด้านบนก่อนใช้งานจริง');
     }
     return;
   }
@@ -731,14 +768,13 @@ async function loginWithGoogle() {
     alert('เข้าสู่ระบบสำเร็จ: ' + (user.displayName || user.email));
   } catch (err) {
     console.error(err);
-    window.alert('เข้าสู่ระบบไม่สำเร็จ: ' + (err?.message || 'กรุณาลองใหม่'));
+    window.alert('เข้าสู่ระบบไม่สำเร็จ');
   }
 }
 
 window.addEventListener('auth-changed', e => {
   currentUser = e.detail;
   const loginBtn = document.getElementById('loginBtn');
-  const adminBtn = document.getElementById('adminBtn');
   const badge = document.getElementById('userBadge');
 
   if (currentUser) {
@@ -765,11 +801,7 @@ function getCurrentPositionSafe(onSuccess, onError) {
   navigator.geolocation.getCurrentPosition(
     onSuccess,
     err => {
-      let msg = 'ไม่สามารถระบุตำแหน่งได้';
-      if (err.code === 1) msg = 'ยังไม่ได้อนุญาตให้เว็บไซต์ใช้ตำแหน่ง — กรุณาเปิด Location Permission ให้เบราว์เซอร์';
-      if (err.code === 2) msg = 'หาตำแหน่งไม่พบ — กรุณาเปิด GPS/Location แล้วลองใหม่';
-      if (err.code === 3) msg = 'การระบุตำแหน่งใช้เวลานานเกินไป — ลองกดอีกครั้ง';
-      window.alert(msg);
+      window.alert('ไม่สามารถระบุตำแหน่ง GPS ได้ กรุณาเปิด Location Service');
       if (typeof onError === 'function') onError(err);
     },
     { enableHighAccuracy:false, timeout:10000, maximumAge:60000 }
@@ -868,7 +900,6 @@ function escapeAttr(s) {
   return escapeHtml(s).replace(/`/g,'&#096;');
 }
 
-// ตรวจสอบสถานะ Admin ตอนโหลดหน้าเว็บครั้งแรก
 if (isAdminUser()) {
   const btn = document.getElementById('adminBtn');
   if (btn) btn.innerText = '🔓 Admin';
@@ -880,7 +911,7 @@ setInterval(() => renderMarkers(reportsData), 30000);
 
 Object.assign(window, {
   toggleAdminPanel, locateUser, showNearby, startPinning, cancelPinLocation,
-  confirmPinLocation, loginWithGoogle, saveReport, closeAdminPanel, logoutAdmin
+  confirmPinLocation, loginWithGoogle, saveReport, closeAdminPanel, logoutAdmin, searchLocation
 });
 </script>
 
