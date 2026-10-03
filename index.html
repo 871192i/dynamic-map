@@ -119,7 +119,7 @@
     </select>
   </div>
 
-  <!-- Modal ฟอร์มเลือกหมวดหมู่และรายละเอียด หลังจากกดปักหมุด -->
+  <!-- Modal ฟอร์มเลือกหมวดหมู่และรายละเอียด -->
   <div id="reportModal" class="modal-overlay fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
     <div class="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 shadow-2xl overflow-y-auto max-h-[85vh] transition-all">
       <div class="flex justify-between items-center border-b pb-3 mb-3">
@@ -145,7 +145,6 @@
           </select>
         </div>
 
-        <!-- แถบเลื่อนระดับน้ำ (แสดงเฉพาะเมื่อเลือกหมวดน้ำท่วม) -->
         <div id="floodSliderGroup" class="bg-blue-50 p-3 rounded-xl border border-blue-100">
           <div class="flex justify-between text-xs font-bold text-blue-900 mb-1">
             <span>🌊 ระดับน้ำขัง:</span>
@@ -210,6 +209,7 @@
     let reportsData = [
       {
         id: 1,
+        userEmail: "sales108@gmail.com",
         category: "flood",
         waterLevel: 30,
         passable: "เฉพาะรถใหญ่",
@@ -222,6 +222,7 @@
       },
       {
         id: 2,
+        userEmail: "sales108@gmail.com",
         category: "shop_cafe",
         waterLevel: null,
         passable: "-",
@@ -252,20 +253,16 @@
     window.searchLocation = async function() {
       const query = document.getElementById('searchLocationInput').value.trim();
       if (!query) return;
-
       try {
         const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
         const results = await response.json();
         if (results && results.length > 0) {
-          const lat = parseFloat(results[0].lat);
-          const lon = parseFloat(results[0].lon);
-          map.flyTo([lat, lon], 16);
+          map.flyTo([parseFloat(results[0].lat), parseFloat(results[0].lon)], 16);
         } else {
-          alert("ไม่พบสถานที่ที่คุณค้นหา กรุณาลองใหม่อีกครั้ง");
+          alert("ไม่พบสถานที่ที่คุณค้นหา");
         }
       } catch (err) {
-        console.error(err);
-        alert("เกิดข้อผิดพลาดในการเชื่อมต่อระบบค้นหา");
+        alert("เกิดข้อผิดพลาดในการค้นหา");
       }
     };
 
@@ -275,14 +272,10 @@
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
           map.flyTo([lat, lng], 16);
-
           if (userLocationMarker) map.removeLayer(userLocationMarker);
           userLocationMarker = L.circleMarker([lat, lng], { radius: 8, color: '#2563EB', fillColor: '#3B82F6', fillOpacity: 1 }).addTo(map);
-          
           updateUserRadius();
-        }, () => {
-          alert("ไม่สามารถเข้าถึงพิกัด GPS ของคุณได้");
-        });
+        }, () => alert("ไม่สามารถเข้าถึง GPS ได้"));
       }
     };
 
@@ -292,13 +285,7 @@
       const latLng = userLocationMarker.getLatLng();
       if (userRadiusCircle) map.removeLayer(userRadiusCircle);
       if (radiusMeters > 0) {
-        userRadiusCircle = L.circle(latLng, {
-          radius: radiusMeters,
-          color: '#3B82F6',
-          fillColor: '#3B82F6',
-          fillOpacity: 0.15,
-          weight: 1
-        }).addTo(map);
+        userRadiusCircle = L.circle(latLng, { radius: radiusMeters, color: '#3B82F6', fillColor: '#3B82F6', fillOpacity: 0.15, weight: 1 }).addTo(map);
       }
     };
 
@@ -311,15 +298,8 @@
         if(document.getElementById('adminBtnMob')) document.getElementById('adminBtnMob').innerText = "🔒 แอดมิน";
         renderMarkers(reportsData);
       } else {
-        if (!currentUser) {
-          alert("กรุณาเข้าสู่ระบบด้วย Google ก่อนครับ");
-          return;
-        }
-        if (currentUser.email !== "sales108@gmail.com") {
-          alert("บัญชีนี้ไม่มีสิทธิ์เข้าใช้งานโหมด Admin ครับ!");
-          return;
-        }
-
+        if (!currentUser) { alert("กรุณาเข้าสู่ระบบด้วย Google ก่อนครับ"); return; }
+        if (currentUser.email !== "sales108@gmail.com") { alert("บัญชีนี้ไม่มีสิทธิ์เข้าใช้งานโหมด Admin ครับ!"); return; }
         const password = prompt("กรอกรหัสผ่าน Admin:");
         if (password === "@@@###jek") {
           isAdmin = true;
@@ -327,17 +307,17 @@
           document.getElementById('adminBtn').innerText = "🔓 โหมดแอดมิน";
           if(document.getElementById('adminBtnMob')) document.getElementById('adminBtnMob').innerText = "🔓 โหมดแอดมิน";
           renderMarkers(reportsData);
-        } else if (password !== null) {
-          alert("รหัสผ่านไม่ถูกต้อง");
-        }
+        } else if (password !== null) { alert("รหัสผ่านไม่ถูกต้อง"); }
       }
     };
 
-    // เมื่อผู้ใช้กดปุ่ม "ปักหมุด ณ จุดนี้" จะบันทึกพิกัดกึ่งกลางจอ แล้วเปิด Modal เลือกหมวดหมู่
     window.confirmPinPosition = function() {
+      const currentUser = window.currentFirebaseUser;
+      if (!currentUser) {
+        alert("กรุณาเข้าสู่ระบบด้วย Google ก่อนทำการปักหมุดครับ!");
+        return;
+      }
       confirmedCoords = map.getCenter();
-      
-      // ลูกเล่นอนิเมชันปุ่มขยับเล็กน้อย
       const pinEl = document.getElementById('centerPin');
       pinEl.classList.add('bounce');
       setTimeout(() => pinEl.classList.remove('bounce'), 200);
@@ -404,6 +384,9 @@
 
     window.saveReport = function(e) {
       e.preventDefault();
+      const currentUser = window.currentFirebaseUser;
+      if (!currentUser) return;
+
       const category = document.getElementById('formCategory').value;
       const waterLevel = category === 'flood' ? document.getElementById('waterLevel').value : null;
       const passable = category.startsWith('shop_') ? '-' : document.getElementById('passableValue').value;
@@ -411,6 +394,7 @@
 
       const newReport = {
         id: Date.now(),
+        userEmail: currentUser.email,
         category: category,
         waterLevel: waterLevel,
         passable: passable,
@@ -434,6 +418,7 @@
       currentMarkersOnMap = [];
 
       const activeData = data.filter(item => item.expiresAt > Date.now());
+      const currentUser = window.currentFirebaseUser;
 
       activeData.forEach(item => {
         const config = getCategoryConfig(item.category);
@@ -447,7 +432,19 @@
 
         const marker = L.marker([item.lat, item.lng], { icon: customHtmlIcon }).addTo(map);
 
-        const deleteBtnHTML = isAdmin ? `<button onclick="deleteReport(${item.id})" class="mt-2 w-full bg-red-100 text-red-600 font-bold py-1 rounded text-xs cursor-pointer">🗑️ ลบหมุดนี้ (Admin)</button>` : '';
+        // ตรวจสอบสิทธิ์: ถ้าเป็นเจ้าของหมุดหรือเป็น Admin จะแสดงปุ่มจัดการ
+        let ownerActionsHTML = '';
+        const isOwner = currentUser && currentUser.email === item.userEmail;
+
+        if (isOwner || isAdmin) {
+          ownerActionsHTML = `
+            <div class="mt-2 pt-2 border-t border-gray-200 flex gap-1">
+              <button onclick="startMoveMarker(${item.id})" class="w-1/2 bg-amber-100 text-amber-700 font-bold py-1 rounded text-[10px] cursor-pointer">📍 ย้ายตำแหน่ง</button>
+              <button onclick="deleteReport(${item.id})" class="w-1/2 bg-red-100 text-red-600 font-bold py-1 rounded text-[10px] cursor-pointer">🗑️ ลบหมุด</button>
+            </div>
+          `;
+        }
+
         const googleMapUrl = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`;
 
         const popupHTML = `
@@ -456,20 +453,64 @@
             <h4 class="font-bold text-xs text-blue-700">${config.emoji} ${config.title} ${item.waterLevel ? `(${item.waterLevel} ซม.)` : ''}</h4>
             ${item.passable !== '-' ? `<p class="text-[10px] font-bold text-gray-800 mt-0.5">🚦 ${item.passable}</p>` : ''}
             <p class="text-[10px] text-gray-600 mt-0.5">${item.desc}</p>
+            <p class="text-[9px] text-gray-400 mt-1">ผู้ปัก: ${item.userEmail || 'ไม่ระบุ'}</p>
             <a href="${googleMapUrl}" target="_blank" class="mt-2 block w-full bg-blue-600 text-white text-center font-bold py-1.5 rounded-lg text-[10px] shadow">🗺️ เปิดด้วย Google Maps</a>
-            ${deleteBtnHTML}
+            ${ownerActionsHTML}
           </div>
         `;
 
         marker.bindPopup(popupHTML);
-        currentMarkersOnMap.push(marker);
+        currentMarkersOnMap.push({ id: item.id, marker: marker });
       });
     }
 
+    // ฟังก์ชันเลื่อนตำแหน่งหมุดเดิม
+    window.startMoveMarker = function(id) {
+      map.closePopup();
+      const targetObj = currentMarkersOnMap.find(m => m.id === id);
+      if (!targetObj) return;
+
+      const marker = targetObj.marker;
+      marker.dragging.enable();
+      map.panTo(marker.getLatLng());
+      
+      marker.bindPopup("<b>🎯 กำลังย้ายตำแหน่งหมุด</b><br>ลากหมุดไปยังตำแหน่งใหม่ แล้วคลิกปุ่มยืนยันด้านล่าง").openPopup();
+
+      // สร้างปุ่มลอยสำหรับยืนยันการย้ายตำแหน่ง
+      const confirmBar = document.createElement('div');
+      confirmBar.id = 'moveConfirmBar';
+      confirmBar.className = 'ui-layer fixed top-16 left-1/2 transform -translate-x-1/2 bg-amber-500 text-white px-4 py-2 rounded-2xl shadow-2xl flex items-center gap-3 font-bold text-xs';
+      confirmBar.innerHTML = `
+        <span>⚠️ กำลังย้ายหมุด... ลากหมุดบนแผนที่</span>
+        <button onclick="saveMovedMarker(${id})" class="bg-white text-amber-700 px-3 py-1 rounded-xl shadow">✔ ยืนยันตำแหน่งใหม่</button>
+      `;
+      document.body.appendChild(confirmBar);
+    };
+
+    window.saveMovedMarker = function(id) {
+      const targetObj = currentMarkersOnMap.find(m => m.id === id);
+      if (targetObj) {
+        const newLatLng = targetObj.marker.getLatLng();
+        const report = reportsData.find(r => r.id === id);
+        if (report) {
+          report.lat = newLatLng.lat;
+          report.lng = newLatLng.lng;
+        }
+        targetObj.marker.dragging.disable();
+      }
+
+      const bar = document.getElementById('moveConfirmBar');
+      if (bar) bar.remove();
+
+      renderMarkers(reportsData);
+      alert("ย้ายตำแหน่งหมุดเรียบร้อย!");
+    };
+
     window.deleteReport = function(id) {
-      if (confirm("ลบหมุดนี้ใช่หรือไม่?")) {
+      if (confirm("คุณต้องการลบหมุดนี้ใช่หรือไม่?")) {
         reportsData = reportsData.filter(r => r.id !== id);
         renderMarkers(reportsData);
+        alert("ลบหมุดเรียบร้อยแล้ว");
       }
     };
 
@@ -530,8 +571,8 @@
                 isAdmin = false;
                 document.getElementById('adminBtn').innerText = "🔒 แอดมิน";
                 if(document.getElementById('adminBtnMob')) document.getElementById('adminBtnMob').innerText = "🔒 แอดมิน";
-                renderMarkers(reportsData);
             }
+            renderMarkers(reportsData);
         });
     };
 
@@ -559,9 +600,9 @@
                 isAdmin = false;
                 document.getElementById('adminBtn').innerText = "🔒 แอดมิน";
                 if(document.getElementById('adminBtnMob')) document.getElementById('adminBtnMob').innerText = "🔒 แอดมิน";
-                renderMarkers(reportsData);
             }
         }
+        renderMarkers(reportsData);
     });
   </script>
 </body>
