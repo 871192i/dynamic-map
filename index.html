@@ -414,7 +414,7 @@
     };
 
     function renderMarkers(data) {
-      currentMarkersOnMap.forEach(m => map.removeLayer(m));
+      currentMarkersOnMap.forEach(m => map.removeLayer(m.marker));
       currentMarkersOnMap = [];
 
       const activeData = data.filter(item => item.expiresAt > Date.now());
@@ -430,17 +430,18 @@
           iconAnchor: [16, 16]
         });
 
-        const marker = L.marker([item.lat, item.lng], { icon: customHtmlIcon }).addTo(map);
+        // เปิดให้สามารถ draggable ได้
+        const marker = L.marker([item.lat, item.lng], { icon: customHtmlIcon, draggable: false }).addTo(map);
 
-        // ตรวจสอบสิทธิ์: ถ้าเป็นเจ้าของหมุดหรือเป็น Admin จะแสดงปุ่มจัดการ
+        // ตรวจสอบสิทธิ์: เจ้าของหมุด หรือ Admin ถึงจะมีสิทธิ์จัดการ
         let ownerActionsHTML = '';
         const isOwner = currentUser && currentUser.email === item.userEmail;
 
         if (isOwner || isAdmin) {
           ownerActionsHTML = `
             <div class="mt-2 pt-2 border-t border-gray-200 flex gap-1">
-              <button onclick="startMoveMarker(${item.id})" class="w-1/2 bg-amber-100 text-amber-700 font-bold py-1 rounded text-[10px] cursor-pointer">📍 ย้ายตำแหน่ง</button>
-              <button onclick="deleteReport(${item.id})" class="w-1/2 bg-red-100 text-red-600 font-bold py-1 rounded text-[10px] cursor-pointer">🗑️ ลบหมุด</button>
+              <button type="button" onclick="startMoveMarker(${item.id})" class="w-1/2 bg-amber-100 text-amber-700 font-bold py-1 rounded text-[10px] cursor-pointer">📍 ย้ายตำแหน่ง</button>
+              <button type="button" onclick="deleteReport(${item.id})" class="w-1/2 bg-red-100 text-red-600 font-bold py-1 rounded text-[10px] cursor-pointer">🗑️ ลบหมุด</button>
             </div>
           `;
         }
@@ -474,15 +475,16 @@
       marker.dragging.enable();
       map.panTo(marker.getLatLng());
       
-      marker.bindPopup("<b>🎯 กำลังย้ายตำแหน่งหมุด</b><br>ลากหมุดไปยังตำแหน่งใหม่ แล้วคลิกปุ่มยืนยันด้านล่าง").openPopup();
+      marker.bindPopup("<b>🎯 กำลังย้ายตำแหน่งหมุด</b><br>ลากหมุดไปยังตำแหน่งใหม่ แล้วคลิกปุ่มยืนยันด้านบน").openPopup();
 
-      // สร้างปุ่มลอยสำหรับยืนยันการย้ายตำแหน่ง
+      if (document.getElementById('moveConfirmBar')) return;
+
       const confirmBar = document.createElement('div');
       confirmBar.id = 'moveConfirmBar';
       confirmBar.className = 'ui-layer fixed top-16 left-1/2 transform -translate-x-1/2 bg-amber-500 text-white px-4 py-2 rounded-2xl shadow-2xl flex items-center gap-3 font-bold text-xs';
       confirmBar.innerHTML = `
         <span>⚠️ กำลังย้ายหมุด... ลากหมุดบนแผนที่</span>
-        <button onclick="saveMovedMarker(${id})" class="bg-white text-amber-700 px-3 py-1 rounded-xl shadow">✔ ยืนยันตำแหน่งใหม่</button>
+        <button onclick="saveMovedMarker(${id})" class="bg-white text-amber-700 px-3 py-1 rounded-xl shadow cursor-pointer">✔ ยืนยันตำแหน่งใหม่</button>
       `;
       document.body.appendChild(confirmBar);
     };
